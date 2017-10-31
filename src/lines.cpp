@@ -1,0 +1,448 @@
+/*
+ * lines.cpp
+ *
+ *  Created on: Mar 20, 2012
+ *      Author: enrico
+ */
+#include "functions.h"
+#include "point.h"
+#include "lines.h"
+
+
+
+
+
+//===================================================
+//							 LINE CLASS FUNCTIONS
+//===================================================
+int LINE::size() const { return controlPt.size(); }
+
+void LINE::init() {	calcS(iStart, iEnd); }
+
+POINT & LINE::operator[](int i) { return controlPt[i]; }
+
+POINT const & LINE::operator[](int i) const { return controlPt[i]; }
+
+void LINE::rotateDegX(double phi)
+{
+  for (int i=0; i<controlPt.size(); i++)
+    controlPt[i].rotateDegX(phi);
+//  init();
+}
+
+void LINE::rotateDegZ(double phi)
+{
+  for (int i=0; i<controlPt.size(); i++)
+    controlPt[i].rotateDegZ(phi);
+//  init();
+}
+
+
+
+void LINE::calcS(int i1, int i2)
+{
+	int N = controlPt.size();
+
+	if (i1 < 0)   i1 = 0;
+	if (i2 > N-1) i2 = N-1;
+
+	controlPt[i1].s = 0.0;
+	for (int i=i1+1; i<=i2; i++)
+		controlPt[i].s = controlPt[i-1].s + mag(controlPt[i]-controlPt[i-1]);
+	length = controlPt[i2].s;
+
+	for (int i=i1-1; i>=0; i--)
+		controlPt[i].s = controlPt[i+1].s - mag(controlPt[i+1]-controlPt[i]);
+
+	for (int i=i2+1; i<N; i++)
+		controlPt[i].s = controlPt[i-1].s + mag(controlPt[i]-controlPt[i-1]);
+
+	for (int i=0; i<N; i++)
+		controlPt[i].s /= length;
+}
+
+POINT LINE::calcPoint(double t, double offset1, double offset2) const
+{
+	int i=0;
+	t = t*(offset2-offset1) + offset1;
+	while ((t>=controlPt[i].s) && (i<controlPt.size()-1)) {i++;}
+	double fact = (t-controlPt[i-1].s)/(controlPt[i].s-controlPt[i-1].s);
+	POINT pt = controlPt[i-1] + fact*(controlPt[i]-controlPt[i-1]);
+	return pt;
+}
+
+
+void LINE::split(deque<POINT> &line1, deque<POINT> &line2, double t)
+{
+	POINT splPt = calcPoint(t);
+
+	int I=1;
+	while (controlPt[I].s<t) I++;
+
+	for (int i=0; i<I; i++)
+		line1.push_back(controlPt[i]);
+	line1.push_back(splPt);
+
+//	line2.push_back(splPt);     //GUSTAVOOOOOOO 23/06/2016      Line 2 had twice the same points!!!
+	for (int i=I; i<controlPt.size(); i++)
+		line2.push_back(controlPt[i]);
+}
+
+
+double LINE::intersect(const POINT &p11, const POINT &p12, const POINT &p21, const POINT &p22)
+{
+	double denom  = ((p22.y - p21.y)*(p12.x - p11.x)) - ((p22.x - p21.x)*(p12.y - p11.y));
+	double nume_a = ((p22.x - p21.x)*(p11.y - p21.y)) - ((p22.y - p21.y)*(p11.x - p21.x));
+	double nume_b = ((p12.x - p11.x)*(p11.y - p21.y)) - ((p12.y - p11.y)*(p11.x - p21.x));
+
+	if (denom != 0.0)
+	{
+		double ua = nume_a/denom;
+		double ub = nume_b/denom;
+		if (ua >= 0.0 && ua <= 1.0 && ub >= 0.0 && ub <= 1.0)  return ua;
+	}
+	return -1.0;
+}
+
+/*! \brief Computes intersection point of two lines using their control points.
+ *
+ *  Intersection point is only accurate if both lines are of type LINE
+ */
+POINT LINE::intersectXY(LINE& line2, bool insertPoint)
+{
+	POINT intersectPt(0.0, 0.0, 0.0);
+
+	int i = 0, j = 0;
+	double ua;
+	bool found = false;
+
+	while ((j<line2.size()-1) && !found)
+	{
+		if ((ua = intersect(controlPt[i], controlPt[i+1], line2.controlPt[j], line2.controlPt[j+1])) != -1.0)   found = true;
+		else
+		{
+			i++;
+			if (i>=this->size()-1)
+			{
+				i = 0;
+				j++;
+			}
+		}
+	}
+
+	intersectPt = controlPt[i] + ua*(controlPt[i+1]-controlPt[i]);
+
+	if (insertPoint == true)
+	{
+		controlPt.insert(controlPt.begin()+i+1, intersectPt);
+		iEnd++;
+		init();
+//		cout<<"Inserting the point!! "<<endl;
+	}
+
+	return intersectPt;
+}
+
+/*! \brief Computes intersection point of two lines using their non-dimensional coordinate s.
+ *
+ *  To be used for SPLINE and BEZIER curves
+ *  \param line2 is the line to perform intersection with
+ *  \param insertPoint boolean to set if intersection point should be added
+ *  \param eps is the truncation error of the iteration to compute the intersection point
+ */
+POINT LINE::intersectXY(LINE& line2, bool insertPoint, double eps)
+{
+	POINT intersectPt(0.0, 0.0, 0.0);
+
+	double s1  = 0.0, s1e = 1.0;
+	double s1Start = s1;
+	double s2  = 0.0, s2e = 1.0;
+	double nInterval = 10.0;
+	double ds = 1./nInterval;
+	double sIntersect, ua;
+
+	while (ds > eps)
+	{
+		if ((ua=intersect(calcPoint(s1), calcPoint(s1+ds), line2.calcPoint(s2), line2.calcPoint(s2+ds))) != -1.0)
+		{
+			sIntersect = s1+ua*ds;
+			s1e = min(s1+2.0*ds, 1.0);
+			s2e = min(s2+2.0*ds, 1.0);
+			s1 = s1Start = max(s1-1.*ds, 0.0);
+			s2 = max(s2-1.*ds, 0.0);
+			ds /= nInterval;
+		}
+		else
+		{
+			s1 += ds;
+			if (s1>=s1e)
+			{
+				s1 = s1Start;
+				s2 += ds;
+				if (s2 >= s2e) return POINT(1.0e99);
+			}
+		}
+	}
+
+	intersectPt = calcPoint(sIntersect);
+
+	if (insertPoint == true)
+	{
+		int jInsert = 0;
+		while(s1 > controlPt[jInsert].s) jInsert++;
+
+		controlPt.insert(controlPt.begin()+jInsert,intersectPt);
+		iEnd++;
+		init();
+	}
+
+	return intersectPt;
+}
+
+/*! \brief Computes the orthogonal projection of a point on the line
+ *
+ *  \param pt is the point to be projected
+ */
+POINT LINE::project2D(POINT &pt)
+{
+	double dist = 1e20;
+	int ind = 0, indmin = 0;
+	deque<POINT> proPts;
+
+	for (int i=1; i<controlPt.size(); i++)
+	{
+		int inside = 0;
+
+		POINT p1 = controlPt[i-1], p2 = controlPt[i];
+
+		double m1 = (p2.y-p1.y)/(p2.x-p1.x + 1e-10) + 1e-10, m2 = -1/m1;
+		double xPro = (p1.y-pt.y+m2*pt.x-m1*p1.x) / (m2-m1);
+		double yPro = p1.y + m1*(xPro-p1.x);
+		POINT pPro = POINT(xPro,yPro,0.0);
+
+		if (mag(pPro-p1)/mag(p2-p1)<=1)
+			inside = 1;
+
+		if (inside==1)
+		{
+			proPts.push_back(pPro);
+			double tmpDist = mag(pPro-pt);
+
+			if (tmpDist<dist)
+			{
+				dist = tmpDist;
+				indmin = ind;
+				ind++;
+			}
+		}
+	}
+
+	return (proPts[indmin]);
+}
+
+
+void LINE::write(const char *name, int N)
+{
+	FILE *fp = fopen(name, "wt");
+	for (int i=0; i<N; i++)
+	{
+		POINT pt = calcPoint((double)i/(N-1.0));
+		fprintf(fp, "%.6lf\t%.6lf\t%.6lf\n", pt.x, pt.y, pt.z);
+	}
+	fclose(fp);
+}
+
+void LINE::write(const char *name, LINE &distr, int N)
+{
+	FILE *fp = fopen(name, "wt");
+	for (int i=0; i<N; i++)
+	{
+		double t = (double)i/(N-1.0);
+		t = distr.calcPoint(t).y;
+		POINT pt = calcPoint(t);
+		fprintf(fp, "%.6lf\t%.6lf\t%.6lf\n", pt.x, pt.y, pt.z);
+	}
+	fclose(fp);
+}
+
+void LINE::writeCtrPts(const char *name)
+{
+	FILE *fp = fopen(name, "wt");
+	for (int i=0; i<controlPt.size(); i++)
+		fprintf(fp, "%.10le\t%.10le\t%.10le\n", controlPt[i].x, controlPt[i].y, controlPt[i].z);
+	fclose(fp);
+}
+
+
+void LINE::drawLine()
+{
+	glLineWidth(3.0);
+	glBegin(GL_LINE_STRIP);
+	glColor3d(1.0, 0.0, 0.0);
+	for (int i=0; i<controlPt.size(); i++)
+		glVertex3d(controlPt[i].x, controlPt[i].y, controlPt[i].z);
+	glEnd();
+	glLineWidth(1.0);
+}
+
+
+//===================================================
+//							 BEZIER CLASS FUNCTIONS
+//===================================================
+POINT BEZIER::calcPoint(double t, double offset1, double offset2) const
+{
+	t = t*(offset2-offset1) + offset1;
+  POINT pt;
+  int N = (int)controlPt.size()-1;
+  for (int i=0; i<=N; i++)
+    pt += (double)binomialCoeff(N, i)*pow(1.-t, double(N-i))*pow(t, double(i))*controlPt[i];
+  return pt;
+}
+
+void BEZIER::drawLine()
+{
+	glLineWidth(2.0);
+  glBegin(GL_LINE_STRIP);
+  glColor3d(0.0, 1.0, 1.0);
+  for (int i=0; i<200; i++)
+  {
+    double fact = (double)i/199.0;
+    glVertex3d(calcPoint(fact).x, calcPoint(fact).y, calcPoint(fact).z);
+  }
+  glEnd();
+  glLineWidth(1.0);
+}
+
+
+//===================================================
+//							 SPLINE CLASS FUNCTIONS
+//===================================================
+void SPLINE::init()
+{
+  calcS(iStart, iEnd);
+  calcDerivative();
+}
+
+POINT SPLINE::calcPoint(double t, double offset1, double offset2) const
+{
+	t = t*(offset2-offset1) + offset1;
+  int klo = 0;
+  int khi = controlPt.size()-1;
+
+  while (khi-klo > 1)
+  {
+    int k = (khi+klo) >> 1;
+    if (controlPt[k].s > t)  khi = k;
+    else                     klo = k;
+  }
+
+  double h = controlPt[khi].s - controlPt[klo].s;
+  if (h == 0.0) printf("Bad xa input to routine splint\n");
+
+  double a = (controlPt[khi].s - t)/h;
+  double b = (t - controlPt[klo].s)/h;
+  POINT pt = a*controlPt[klo] + b*controlPt[khi] + (h*h/6.0)*((a*a*a-a)*deriv[klo]+(b*b*b-b)*deriv[khi]);
+  return pt;
+}
+
+void SPLINE::calcDerivative()
+{
+  int n = controlPt.size();
+  deriv.resize(n);
+  POINT u[n-1];
+
+  deriv[0] = u[0] = POINT(0.0, 0.0, 0.0);
+  for(int i = 1; i < n-1; i++)
+  {
+    double sig = (controlPt[i].s - controlPt[i-1].s)/(controlPt[i+1].s - controlPt[i-1].s);
+    POINT p = sig*deriv[i-1] + 2.0;
+    deriv[i] = (sig - 1.0)/p;
+    u[i] =  (controlPt[i+1] - controlPt[i])/(controlPt[i+1].s - controlPt[i].s)
+           -(controlPt[i] - controlPt[i-1])/(controlPt[i].s - controlPt[i-1].s);
+    u[i] = (6.0*u[i]/(controlPt[i+1].s - controlPt[i-1].s) - sig*u[i-1])/p;
+  }
+
+  POINT qn, un;
+  qn = un = POINT(0.0, 0.0, 0.0);
+  deriv[n-1] = (un - qn*u[n-2])/(qn*deriv[n-2] + 1.0);
+  for(int k = n-2; k >= 0; k--)
+    deriv[k] = deriv[k]*deriv[k+1] + u[k];
+}
+
+/*! \brief spline offset
+ *
+ */
+SPLINE SPLINE::offsetRadial(const double thickness)
+{
+  deque<POINT> newPts;
+
+  for (int i=0; i<controlPt.size(); i++)
+    newPts.push_back(controlPt[i]+thickness*calcNorm2D(controlPt[i].s));
+
+  SPLINE newSpl(newPts, iStart, iEnd);
+
+  return (newSpl);
+
+}
+
+
+POINT SPLINE::calcNorm2D(double t) const
+{
+  double ds = 0.00008; //0.005 ; //0.0001;
+  POINT pt1 = calcPoint(t-ds);
+  POINT pt2 = calcPoint(t+ds);
+  POINT tang = (pt2-pt1)/(2.0*ds);
+  double tmp = tang.x;
+  tang.x = tang.y;
+  tang.y = -tmp;
+  return tang/mag(tang);
+}
+
+void SPLINE::drawLine()
+{
+  glLineWidth(3.0);
+  glBegin(GL_LINE_STRIP);
+  glColor3d(1.0, 0.0, 0.5);
+  for (int i=0; i<500; i++)
+  {
+    double fact = (double)i/499.0;
+    glVertex3d(calcPoint(fact).x, calcPoint(fact).y, calcPoint(fact).z);
+  }
+  glEnd();
+  glLineWidth(1.0);
+}
+
+
+
+//===================================================
+//							 POLYGON CLASS FUNCTIONS
+//===================================================
+bool POLYGON::pointInsidePolygon(POINT &pt)
+{
+	// check if the point pt is inside the polygon
+	int intCount=0;
+
+	for (int i=0; i<controlPt.size()-1; i++)
+	{
+		POINT p1 = controlPt[i], p2 = controlPt[i+1];
+
+		double intX;
+
+		double m = (p2.y-p1.y)/(p2.x-p1.x+1e-20);
+		if (m==0) m+=1e-20;
+
+		intX = (pt.y - p1.y)/m + p1.x;
+
+		if ((intX>pt.x) && (intX>=min(p1.x,p2.x)) && (intX<=max(p1.x,p2.x)))
+			intCount++;
+	}
+
+	bool inside;
+
+	if (intCount%2 == 0)
+		inside = false;
+	else inside = true;
+
+	return(inside);
+}
+
