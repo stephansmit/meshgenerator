@@ -84,55 +84,96 @@ public:
     addParamsFromFile("param.dat");
     clearVisu();
 
-//    POINT a(0.0, 0.0);
-//    POINT b(1.0, 0.0);
-//    POINT c(1.0, 2.0);
-//    POINT d(0.0, 2.0);
-//
-//
-////
-////    addToDisplay(a);
-////    addToDisplay(b);
-////    addToDisplay(c);
-////    addToDisplay(d);
-//
-//
-//    deque<POINT> tmp;
-//    tmp.push_back(a);
-//    tmp.push_back(b);
-//    tmp.push_back(c);
-//    tmp.push_back(d);
-//
-//    addToDisplay(tmp);
-//    LINE l1(tmp);
-//
-//
-//
-//    int imax = 10;
-//    int jmax = 20;
-//    STRUCTMESH strMesh(imax,jmax);
-//
-//
-//    for(int i=0; i<imax; i++)
-//      for(int j=0; j<jmax; j++)
-//      {
-//        POINT pA = a + (double)i/(double)(imax-1)*(b-a);
-//        POINT pB = d + (double)i/(double)(imax-1)*(c-d);
-//        strMesh.mesh[i][j] = pA + (double)j/(double)(jmax-1)*(pB-pA);
-//      }
-//
-////    addToDisplay(strMesh);
-//
-//    UNSTRUCTMESH unstMesh(strMesh);
-//
-//
-//    addToDisplay(unstMesh);
 
+
+
+
+    deque<BLADE> blades;
+    if (!readAnsysBladeGenGeometry(getStringParam("fileName").c_str(), blades))     throw(-1);
+
+    for (int i=0;i<blades[0].profile[2].controlPt.size(); i++)
+    		blades[0].profile[2].controlPt[i].z = 0.0;
+
+
+//
+//    addToDisplay(blades[0].profile[0]);
+//    addToDisplay(blades[0].profile[1]);
+//    addToDisplay(blades[0].profile[2]);
+//    addToDisplay(blades[0].profile[3]);
+//    addToDisplay(blades[0].profile[4]);
+
+    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[0]);  // this is to close the blade profile
+
+    blades[0].profile[2].controlPt.push_front(blades[0].profile[2].controlPt[blades[0].profile[2].controlPt.size()-2]);
+//    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[0]);
+    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[2]);
+
+//    addToDisplay(blades[0].profile[2].controlPt);
+
+//    addToDisplay(blades[0].profile[2].controlPt[1]);
+//    addToDisplay(blades[0].profile[2].controlPt[blades[0].profile[2].controlPt.size()-1]);
+//    addToDisplay(blades[0].profile[2].controlPt[blades[0].profile[2].controlPt.size()-2]);
+
+
+
+
+    SPLINE blade(blades[0].profile[2].controlPt, 1, blades[0].profile[2].controlPt.size()-2);
+
+
+    STRUCTMESH oblock = makeMeshEdgeSpecial(blade,100, 20, -1.0, 0.01, 3, 1, 1, 1, 1);
+
+
+    deque<POINT> outeredge;
+    for (int i=0; i<oblock.imax-1; i++)
+    		outeredge.push_back(oblock.mesh[i][oblock.jmax-1]);
+//    outeredge.push_back(outeredge[0]);
+
+    addToDisplay(outeredge);
+
+
+//    addToDisplay(oblock);
+
+
+
+
+    TRIANGULATE tipCle3;
+
+//    deque<POINT> tmp;
+//    for (int i=0; i<tipCle2.imax; i++)
+//    	tmp.push_back(tipCle2.mesh[i][tipCle2.jmax-1]);
+//
+//
+//    for (int j=jmaxTC2; j<jmaxTC1-jmaxTC2; j++)
+//    	tmp.push_back(tipCle1.mesh[imaxTC1-1][j]);
+//
+
+    tipCle3.triangParameters = "pq30a0.000002FDY";
+    tipCle3.extBoundary = outeredge;
+    tipCle3.unstructuredMesh2D();
+
+//    UNSTRUCTMESH unstr = (UNSTRUCTMESH)tipCle3;
+
+//    addToDisplay(unstr);
+
+
+
+
+//    	    const int imax, const int jmax, const double thickness,
+//    	    const double firstLength, const int interp, const double par1, const double par2, const double h1, const double h2);
+
+
+
+
+
+#if 0
     // ==========================================================================================
     // READ HUB AND SHROUD POINTS
     // ==========================================================================================
     LINE hubLine("BladeGen_hub2.curve");
     LINE shrLine("BladeGen_shroud2.curve");
+
+    addToDisplay(hubLine);
+    addToDisplay(shrLine);
 
     // define hub and shr lines on the r-z plane
     deque<POINT> tmp_pts;
@@ -245,14 +286,14 @@ public:
 
 
     SPLINE tmp(mod_profile_pts);
-//    addToDisplay(tmp);
-//    addToDisplay(blades[0].profile[2].controlPt);
+    addToDisplay(tmp);
+    addToDisplay(blades[0].profile[2].controlPt);
 
-
+#endif
     // ==========================================================================================
     // ROTOR MESH
     // ==========================================================================================
-#if 1
+#if 0
 
 //    LINE perMinLine(halfSpan_pts);
 //    for (int i=0; i<perMinLine.controlPt.size(); i++) perMinLine.controlPt[i].rotateDegZ(0.5);
@@ -302,10 +343,10 @@ public:
     fclose(file);
 //    throw(-1);
 
-//    addToDisplay(omeshSS);
-//    addToDisplay(omeshPS);
+    addToDisplay(omeshSS);
+    addToDisplay(omeshPS);
 
-#if 0
+#if 1
     //========================================================================//
     /* calculate area distribution */
     SPLINE ssSpl = ssSpline;
@@ -425,7 +466,7 @@ public:
 
     // ===============================
     // Define the periodic boundary
-#if 0
+#if 1
     int rotPer = getIntParam("ROT_PER");
     int rotIn  = getIntParam("ROT_IN");
     int rotOut = getIntParam("ROT_OUT");
