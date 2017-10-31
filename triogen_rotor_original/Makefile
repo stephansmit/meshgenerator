@@ -4,7 +4,7 @@
 
 #PREFIX = /home/renep/Projects/hybridMeshGen/src/
 #PREFIX = /home/gjoterorodrigu/Programs/MeshGen/src/
-PREFIX = /home/gjoterorodrigu/PhD/Dropbox/University_PC/MeshGen/src/
+PREFIX = ../src/
 
 # Definitions needed to compire Triangle
 TRILIBDEFS = -DTRILIBRARY -DANSI_DECLARATORS
