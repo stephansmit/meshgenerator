@@ -152,6 +152,7 @@ int main(int argc, char *argv[])
 
   Singleton *radialComp = Singleton::instanciate("param.dat");
 
+  POINT a(5.0);
   glutDisplayFunc(radialComp->display);
   glutIdleFunc(radialComp->reMakeMesh);
   glutMainLoop();
