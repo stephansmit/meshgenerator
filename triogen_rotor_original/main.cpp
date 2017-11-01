@@ -88,11 +88,11 @@ public:
 
 
 
-    deque<BLADE> blades;
-    if (!readAnsysBladeGenGeometry(getStringParam("fileName").c_str(), blades))     throw(-1);
-
-    for (int i=0;i<blades[0].profile[2].controlPt.size(); i++)
-    		blades[0].profile[2].controlPt[i].z = 0.0;
+//    deque<BLADE> blades;
+//    if (!readAnsysBladeGenGeometry(getStringParam("fileName").c_str(), blades))     throw(-1);
+//
+//    for (int i=0;i<blades[0].profile[2].controlPt.size(); i++)
+//    		blades[0].profile[2].controlPt[i].z = 0.0;
 
 
 //
@@ -102,11 +102,11 @@ public:
 //    addToDisplay(blades[0].profile[3]);
 //    addToDisplay(blades[0].profile[4]);
 
-    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[0]);  // this is to close the blade profile
-
-    blades[0].profile[2].controlPt.push_front(blades[0].profile[2].controlPt[blades[0].profile[2].controlPt.size()-2]);
-//    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[0]);
-    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[2]);
+//    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[0]);  // this is to close the blade profile
+//
+//    blades[0].profile[2].controlPt.push_front(blades[0].profile[2].controlPt[blades[0].profile[2].controlPt.size()-2]);
+////    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[0]);
+//    blades[0].profile[2].controlPt.push_back(blades[0].profile[2].controlPt[2]);
 
 //    addToDisplay(blades[0].profile[2].controlPt);
 
@@ -117,26 +117,75 @@ public:
 
 
 
-    SPLINE blade(blades[0].profile[2].controlPt, 1, blades[0].profile[2].controlPt.size()-2);
-
-
-    STRUCTMESH oblock = makeMeshEdgeSpecial(blade,100, 20, -1.0, 0.01, 3, 1, 1, 1, 1);
-
-
-    deque<POINT> outeredge;
-    for (int i=0; i<oblock.imax-1; i++)
-    		outeredge.push_back(oblock.mesh[i][oblock.jmax-1]);
-//    outeredge.push_back(outeredge[0]);
-
-    addToDisplay(outeredge);
-
-
+//    SPLINE blade(blades[0].profile[2].controlPt, 1, blades[0].profile[2].controlPt.size()-2);
+//
+//
+//    STRUCTMESH oblock = makeMeshEdgeSpecial(blade,100, 20, -1.0, 0.01, 3, 1, 1, 1, 1);
+//
+//
+//    deque<POINT> outeredge;
+//    for (int i=0; i<oblock.imax-1; i++)
+//    		outeredge.push_back(oblock.mesh[i][oblock.jmax-1]);
+////    outeredge.push_back(outeredge[0]);
+//
+//    addToDisplay(outeredge);
+//
+//
 //    addToDisplay(oblock);
 
 
+	deque<POINT> points;
+	double mid = 5;
+
+	for (int i=0; i<10; i++) {
+		POINT pt((double) i+mid, 0+mid, 0);
+		points.push_back(pt);
+	}
+
+	for (int i=0; i<10; i++) {
+		POINT pt((double) 10+mid, i+mid, 0);
+		points.push_back(pt);
+	}
+
+	for (int i=0; i<10; i++) {
+		POINT pt((double) 10-i+mid, 10+mid, 0);
+		points.push_back(pt);
+	}
+
+	for (int i=0; i<10; i++) {
+		POINT pt((double) 0+mid, 10-i+mid, 0);
+		points.push_back(pt);
+	}
+	addToDisplay(points);
 
 
-    TRIANGULATE tipCle3;
+	deque<POINT> points2;
+	for (int i=0; i<40; i++) {
+		POINT pt((double) i, 0, 0);
+		points2.push_back(pt);
+	}
+
+	for (int i=0; i<40; i++) {
+		POINT pt((double) 40, i, 0);
+		points2.push_back(pt);
+	}
+
+	for (int i=0; i<40; i++) {
+		POINT pt((double) 40-i, 40, 0);
+		points2.push_back(pt);
+	}
+
+	for (int i=0; i<40; i++) {
+		POINT pt((double) 0, 40-i, 0);
+		points2.push_back(pt);
+	}
+	addToDisplay(points2);
+
+
+
+
+
+    TRIANGULATE triang;
 
 //    deque<POINT> tmp;
 //    for (int i=0; i<tipCle2.imax; i++)
@@ -147,13 +196,32 @@ public:
 //    	tmp.push_back(tipCle1.mesh[imaxTC1-1][j]);
 //
 
-    tipCle3.triangParameters = "pq30a0.000002FDY";
-    tipCle3.extBoundary = outeredge;
-    tipCle3.unstructuredMesh2D();
+    HOLE holeSpliBlade;
+	holeSpliBlade.insidePoints = POINT(mid, mid);
+//	for (int i=0; i<points.size()-1; i++)
+//	holeSpliBlade.holesPoints.push_back(points[i]);
+	holeSpliBlade.holesPoints = points;
+	triang.holes.push_back(holeSpliBlade);
 
-//    UNSTRUCTMESH unstr = (UNSTRUCTMESH)tipCle3;
+//	HOLE hole;
+//   hole.holesPoints = intPts;
+//   hole.insidePoints = POINT(0.0,0.0);
+//   test.holes.push_back(hole);
 
-//    addToDisplay(unstr);
+
+
+    double triangSize = getDoubleParam("TRIAGSIZE");
+
+    char param[200];
+    sprintf(param, "pq30a%fFDY", triangSize);
+    printf("size = %s", param);
+
+    triang.triangParameters = param;
+
+    triang.extBoundary = points2;
+    triang.unstructuredMesh2D();
+
+    addToDisplay(triang);
 
 
 

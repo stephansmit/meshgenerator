@@ -1,5 +1,14 @@
 fileName = BladeGen_profile.curve
 
+
+TRIAGSIZE = 1
+
+
+
+
+
+
+
 ###############################
 #            ROTOR            #
 ###############################
