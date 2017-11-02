@@ -211,6 +211,7 @@ public:
     double alphatrail = getDoubleParam("alphatrail");
     double thickness = getDoubleParam("thickness");
     double thicknesp = getDoubleParam("thicknesp");
+    double posthickness = getDoubleParam("posthickness");
     int ntrail = getIntParam("ntrail");
     int nlead = getIntParam("nlead");
     int nsuction = getIntParam("nsuction");
@@ -267,16 +268,17 @@ public:
     deque<POINT> bezierpoints;
     bezierpoints.push_back(rlead);bezierpoints.push_back(intersect);bezierpoints.push_back(rtrail);
     BEZIER beziercurve(bezierpoints);
-    deque<POINT> bezierpointdis = discretizeLine2(beziercurve,20, true, false);
-    POINT rmiddle = beziercurve.calcPoint(0.5);
+    deque<POINT> bezierpointdis = discretizeLine2(beziercurve,1000, true, false);
     SPLINE bezierline(bezierpointdis);
+    POINT rmiddle = bezierline.calcPoint(posthickness);
+    //bezierline.rotateDegZ(-stagger_deg/2);
     SPLINE test = bezierline;
-    //test.rotateDegZ(angle_deg/2);
+    test.rotateDegZ(-stagger_deg/2);
 
     //------------------------calculate the thickness
-    POINT middlesuction = rmiddle - thickness * bezierline.calcNorm2D(beziercurve.calcPoint(0.5).s);
-    POINT middlepressure = rmiddle +thicknesp * bezierline.calcNorm2D(beziercurve.calcPoint(0.5).s);
-
+    POINT s = bezierline.calcNorm2D(posthickness);;
+    POINT middlesuction = rmiddle + thickness* (s-rmiddle);
+    POINT middlepressure = rmiddle - thicknesp* (s-rmiddle);
 
 
     //-----------------------construct the blade
@@ -382,10 +384,19 @@ public:
     mesh.unstructuredMesh2D();
 
     //addToDisplay(suctionside);
-    addToDisplay(bladeBL);
-    bezierline.rotateDegZ(-stagger_deg/2);
-    addToDisplay(bezierline);
+    //deque<POINT> testt;
+    //POINT neww(-s.x, -s.y,0.0);
+    //testt.push_back(neww);
+    //testt.push_back(rmiddle);
+    //testt.push_back(s);
+    //LINE linetest(testt);
+    //addToDisplay(linetest);
 
+    addToDisplay(bladeBL);
+    addToDisplay(test);
+    //bezierline.rotateDegZ(-stagger_deg/2);
+    //addToDisplay(bezierline);
+    //addToDisplay(rmiddle);
     //addToDisplay(blade);
     //addToDisplay(suctionside_dis);
     //addToDisplay(pressureside_dis);
@@ -394,8 +405,10 @@ public:
 
 
     //addToDisplay(camberline);
-    //addToDisplay(rlead);
-    //addToDisplay(rlead);
+    middlesuction.rotateDegZ(-stagger_deg/2);
+    middlepressure.rotateDegZ(-stagger_deg/2);
+    addToDisplay(middlesuction);
+    addToDisplay(middlepressure);
     //addToDisplay(trailingedge_dis[1]);
     //addToDisplay(leadingedge_dis[1]);
 

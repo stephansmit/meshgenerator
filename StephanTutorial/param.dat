@@ -1,19 +1,25 @@
 fileName = BladeGen_profile.curve
 
 
+###DESIGNVARIABLES####
+stagger_deg = 10.0
+Radtrailing=0.0002
+Radleading=0.001
+thickness=0.003
+thicknesp=0.001
+posthickness=0.7
 
-Rin = 0.1
-Rout = 0.2
-angle_deg = 20.0
-stagger_deg = 6.0
+####FIXED####
+angle_deg = 30.0
 Rtrailing=0.12
 Rleading=0.18
-Radtrailing=0.0005
-Radleading=0.001
+Rin = 0.1
+Rout = 0.2
 alphalead=70
 alphatrail=10
-thickness=0.002
-thicknesp=0.001
+
+
+###DISCRETIZATION
 ntrail=10
 nlead=30
 nsuction=100
@@ -25,7 +31,6 @@ nboundouter=20
 nbladeBL=50
 thickBL=0.002
 first_l=2.5e-6
-
 
 ###############################
 #            ROTOR            #
