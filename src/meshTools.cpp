@@ -1456,32 +1456,125 @@ UNSTRUCTMESH MESHTOOLS::buildMesh3D(deque<SPANLEVEL> &layers2D, const int nLayer
 
 
 
-
-UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz)
+//
+//UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz)
+//{
+//  UNSTRUCTMESH mesh3D;
+//
+//  for (int i=0; i<mesh2D.nodes.size(); i++)
+//    mesh3D.nodes.push_back(mesh2D.nodes[i]);
+//  for (int i=0; i<mesh2D.nodes.size(); i++)
+//    mesh3D.push_back_node(mesh2D.nodes[i].pt+POINT(0.0,0.0,dz));
+//
+//  mesh3D.elem_i.push_back(0);
+//
+//  for (int i=1; i<mesh2D.elem_i.size(); i++)
+//  {
+//    int startJ = mesh2D.elem_i[i-1];
+//    int endJ = mesh2D.elem_i[i];
+//    for (int j=startJ; j<endJ; j++)
+//      mesh3D.elem_v.push_back(mesh2D.elem_v[j]);
+//    for (int j=startJ; j<endJ; j++)
+//      mesh3D.elem_v.push_back(mesh2D.elem_v[j]+mesh2D.nodes.size());
+//
+//    mesh3D.elem_i.push_back(2*(endJ-startJ) + mesh3D.elem_i[mesh3D.elem_i.size()-1]);
+//  }
+//  return(mesh3D);
+//}
+UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz, const int kmax=2)
 {
-  UNSTRUCTMESH mesh3D;
+   UNSTRUCTMESH mesh3D;
 
-  for (int i=0; i<mesh2D.nodes.size(); i++)
-    mesh3D.nodes.push_back(mesh2D.nodes[i]);
-  for (int i=0; i<mesh2D.nodes.size(); i++)
-    mesh3D.push_back_node(mesh2D.nodes[i].pt+POINT(0.0,0.0,dz));
+   //--------------------------------
+   // Copying the elements
+   deque<int> elem_v_2D, elem_i_2D;
+   elem_v_2D = mesh2D.elem_v;
+   elem_i_2D = mesh2D.elem_i;
+   //Node count: all nodes and internal nodes
+   int nvert =     (int)mesh2D.nodes.size();
+   int nno_i =     (int)mesh2D.nno_i;
+   int nno_bc =    nvert-nno_i;
+   //Element count: all elements and internal elements
+   int nelem =     (int)elem_i_2D.size()-1;
+   int nel_i =     (int)mesh2D.nel_i;
+   int nel_bc =    nelem-nel_i;
+   //--------------------------------
 
-  mesh3D.elem_i.push_back(0);
 
-  for (int i=1; i<mesh2D.elem_i.size(); i++)
-  {
-    int startJ = mesh2D.elem_i[i-1];
-    int endJ = mesh2D.elem_i[i];
-    for (int j=startJ; j<endJ; j++)
-      mesh3D.elem_v.push_back(mesh2D.elem_v[j]);
-    for (int j=startJ; j<endJ; j++)
-      mesh3D.elem_v.push_back(mesh2D.elem_v[j]+mesh2D.nodes.size());
+//****************************************************************
+   //      3D NODES
+   // 1. Internal nodes of the 2D mesh
+   //    1.1 Bottom internal nodes
+   //    1.2 Top internal nodes
+   // 2. Boundary nodes of the 2D mesh
+   //    2.1 Bottom boundary nodes
+   //    2.2 Top boundary nodes
+   // They are divided like this to make the face generation easier...
 
-    mesh3D.elem_i.push_back(2*(endJ-startJ) + mesh3D.elem_i[mesh3D.elem_i.size()-1]);
-  }
-  return(mesh3D);
+
+   //=============================================================
+   //-----------------------------------------
+   //    1. internal nodes of the 2D mesh
+   //         1.1 From bottom to top  nodes
+   for (int k=0; k<kmax; k++)
+     for (int i=0; i<nno_i; i++)
+     {
+       NODE tmp = mesh2D.nodes[i];
+       tmp.pt += POINT(0.0,0.0,(double)k/((double)kmax-1)*dz);
+       mesh3D.nodes.push_back(tmp);
+     }
+   //-----------------------------------------
+   //    2. boundary nodes of the 2D mesh
+   //         2.1 Bottom  nodes
+   for (int k=0; k<kmax; k++)
+     for (int i=nno_i; i<nvert; i++)
+     {
+       NODE tmp = mesh2D.nodes[i];
+       tmp.pt += POINT(0.0,0.0,(double)k/((double)kmax-1)*dz);
+       mesh3D.nodes.push_back(tmp);
+     }
+   int nno_i_3D = kmax*nno_i;
+   int nvert_3D = kmax*nvert;
+
+   if((int)mesh3D.nodes.size()- nvert_3D != 0)
+   {
+     cout<<"Error, the number of vertices of each mesh is not the same"<<endl;
+     //      cout<<"Nvert: "<<nvert_3D<<" mesh3D:
+     //"<<mesh3D.nodes.size()<<endl;
+     throw(-1);
+   }
+
+
+//****************************************************************
+   // ELEMENTS OF THE 3D MESH,
+   int j=0;        //element count
+
+   //-------------------
+   // 1.1 Internal elements of the original 2D mesh
+   mesh3D.elem_i.push_back(j);
+   for (int k=0; k<kmax-1; k++)
+     for (int c=0; c<nelem; c++) //nel_i //nelem
+     {
+       for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+         if(elem_v_2D[i]>=nno_i)
+mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_bc +(kmax-1)*nno_i);
+         else mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_i);
+
+       for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+         if(elem_v_2D[i]>=nno_i)
+mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_bc +(kmax-1)*nno_i);
+         else mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_i);
+
+
+       j += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+       mesh3D.elem_i.push_back(j);
+     }
+
+
+
+   return(mesh3D);
+
 }
-
 UNSTRUCTMESH MESHTOOLS::buildMesh3DNew(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme) //, const int startLayer, const string &interpScheme)   //GUSTAVO 15/06/16
 {
 

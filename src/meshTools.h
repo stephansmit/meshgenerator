@@ -257,7 +257,7 @@ public:
    */
   UNSTRUCTMESH buildMesh3D(deque<SPANLEVEL> &layers2D, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme);
 
-  UNSTRUCTMESH mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz);
+  UNSTRUCTMESH mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz, const int kmax);
 
   UNSTRUCTMESH buildMesh3DNew(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme);  //GUSTAVO 15/06/16
 

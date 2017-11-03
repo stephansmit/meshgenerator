@@ -388,7 +388,7 @@ SPLINE SPLINE::offsetRadial(const double thickness)
 
 POINT SPLINE::calcNorm2D(double t) const
 {
-  double ds = 0.0000001; //0.005 ; //0.0001;
+  double ds = 0.000001; //0.005 ; //0.0001;
   double angle = atan(calcPoint(t).y/calcPoint(t).x);
   double angle2 = (angle * 180.0)/M_PI;
   POINT pt1 = calcPoint(t-ds);
@@ -398,15 +398,30 @@ POINT SPLINE::calcNorm2D(double t) const
 //  tang.rotateDegZ(90);
   double tmp = tang.x;
 
-  if (tang.y >= 0){
+  if (tang.y >= 0 & tang.x>=0){
 	  tang.x = tang.y;
 	  tang.y = tmp;
-	  tang.rotateDegZ(angle2);
+	  //tang.rotateDegZ(angle2);
   }
   else{
-	  tang.x = -tang.y;
-	  tang.y = tmp;
-	  tang.rotateDegZ(-angle2);
+	  if (tang.y <= 0 & tang.x>=0){
+		  tang.x = -tang.y;
+		  tang.y = tmp;
+		  //tang.rotateDegZ(-angle2);
+	  }
+	  else {
+		  if (tang.y <= 0 & tang.x>=0){
+			  tang.x = -tang.y;
+			  tang.y = -tmp;
+			  //tang.rotateDegZ(-angle2);
+		  }
+		  else{
+			  tang.x = -tang.y;
+			  tang.y = tmp;
+
+		  }
+	}
+	  //tang.rotateDegZ(angle2);
   }
 
   return tang/mag(tang);

@@ -104,7 +104,6 @@ public:
 	  return points;
   }
 
-
   deque<POINT> discretizeLine(SPLINE line, int npoints, bool startend, bool reverse)
   {
 	  deque<POINT> points;
@@ -187,7 +186,143 @@ public:
 	  }
 	  return points;
   }
+  double calcheight(double a, double b, double c, POINT point)
+  {
+	  double height;
+	  double r = sqrt(pow(point.x,2) + pow(point.y,2));
+	  height = a + b*r + c*pow(r,2);
+	  return height;
+  }
 
+  UNSTRUCTMESH buildMesh3D_gus(UNSTRUCTMESH &unstMesh, const double dz, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme)
+  {
+    /* Made by Gustavo J. Otero Date: 01-04-2016
+     * For this function generates a 3D mesh from a 2D meshes. It first generates a second 2D mesh at a distance "dz"
+     * This process can be also done for a deque of <UNSTRUCTMESH> layer2D but it is necessary that the number of elements match
+     *
+     *
+     */
+    UNSTRUCTMESH mesh3D;
+    deque<int> elem_v_2D, elem_i_2D;
+
+
+    deque< deque<POINT> > points2D;
+    deque<UNSTRUCTMESH> layers2D;
+
+    // Copying the 2D mesh and the nodes that construct them
+    for (int i=0; i<2;i++)
+    {
+      UNSTRUCTMESH tmp_mesh;
+      deque<POINT> tmpPts;
+
+      tmp_mesh= unstMesh;
+      //    tmp_mesh(unstMesh);
+      for (int j=0;j<tmp_mesh.nodes.size();j++)
+      {
+        tmp_mesh.nodes[j].pt=unstMesh.nodes[j].pt+POINT(0.0,0.0,i*dz);        //making a copy of the 2D mesh at a certain dz up!!
+        tmpPts.push_back(tmp_mesh.nodes[j].pt);
+      }
+      points2D.push_back(tmpPts);
+      layers2D.push_back(tmp_mesh);
+    }
+
+    //  addToDisplay(layers2D[0]);
+    //  addToDisplay(layers2D[1]);
+    //  addToDisplay(points2D[0]);
+    //  addToDisplay(points2D[1]);
+
+
+    elem_v_2D = layers2D[0].elem_v;
+    elem_i_2D = layers2D[0].elem_i;
+
+
+    int nvert = (int)points2D[0].size();
+    int nelem = (int)elem_i_2D.size()-1;
+
+    // NODES OF THE 3D MESH
+
+    // Cpying the nodes in the other direction, in this case z!
+    deque< deque<POINT> > nodes3D;    //number of nodes in the 2D mesh x number of layers in z
+
+
+    for (int i=0; i<nvert; i++)
+    {
+      deque<POINT> nodes_i;
+
+      deque<POINT> splinepts;
+      for (int s=0; s<points2D.size(); s++)
+        splinepts.push_back(points2D[s][i]);
+
+
+      LINE span(splinepts);
+      // define distribution in the spanwise direction
+      double distr[nLayers];
+      firstLastLengthDistr(dz/nLayers, dz/nLayers, nLayers, distr);      //First lenght and last lenght can be used for boundary layer in the spanwise direction
+      for (int l=0; l<nLayers; l++)
+        nodes_i.push_back(span.calcPoint(distr[l]));
+
+      //      if (interpScheme == "LINE")
+      //          {
+      //            LINE span(splinepts);
+      //            // define distribution in the spanwise direction
+      //            double distr[nLayers];
+      //            firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
+      //            for (int l=0; l<nLayers; l++)
+      //              nodes_i.push_back(span.calcPoint(distr[l]));
+      //          }
+      //          else if (interpScheme == "SPLINE")
+      //          {
+      //            SPLINE span(splinepts);
+      //            // define distribution in the spanwise direction
+      //            double distr[nLayers];
+      //            firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
+      //            for (int l=0; l<nLayers; l++)
+      //              nodes_i.push_back(span.calcPoint(distr[l]));
+      //          }
+      //          else if (interpScheme == "BEZIER")
+      //          {
+      //            BEZIER span(splinepts);
+      //            // define distribution in the spanwise direction
+      //            double distr[nLayers];
+      //            firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
+      //            for (int l=0; l<nLayers; l++)
+      //              nodes_i.push_back(span.calcPoint(distr[l]));
+      //          }
+      //          else
+      //          {
+      //            cout << "error: interpolation " << interpScheme << " not implemented" << endl;
+      //            throw(-10);
+      //          }
+      nodes3D.push_back(nodes_i);
+    }
+    for (int l=0; l<nLayers; l++)
+      for (int i=0; i<nvert; i++)
+      {
+        NODE tmp;
+        tmp.pt = nodes3D[i][l];
+        mesh3D.nodes.push_back(tmp);
+      }
+    //   mesh3D.nno_i = mesh3D.nodes.size() - nvert;
+    // ELEMENTS OF THE 3D MESH
+    int k=0;
+    mesh3D.elem_i.push_back(k);
+    for (int l=0; l<nLayers-1; l++)
+      for (int c=0; c<nelem; c++)
+      {
+        deque<int> tmpElem;
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          mesh3D.elem_v.push_back(elem_v_2D[i]+(l+1)*nvert);
+
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          mesh3D.elem_v.push_back(elem_v_2D[i]+(l)*nvert);
+
+        k += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+        mesh3D.elem_i.push_back(k);
+      }
+    mesh3D.nel_i = mesh3D.elem_i.size() - 1 - nelem;
+
+    return(mesh3D);
+  }
 
   void makeMesh()
   {
@@ -270,15 +405,16 @@ public:
     BEZIER beziercurve(bezierpoints);
     deque<POINT> bezierpointdis = discretizeLine2(beziercurve,1000, true, false);
     SPLINE bezierline(bezierpointdis);
-    POINT rmiddle = bezierline.calcPoint(posthickness);
+    POINT rmiddle_tmp = bezierline.calcPoint(posthickness);
     //bezierline.rotateDegZ(-stagger_deg/2);
     SPLINE test = bezierline;
     test.rotateDegZ(-stagger_deg/2);
 
     //------------------------calculate the thickness
-    POINT s = bezierline.calcNorm2D(posthickness);;
-    POINT middlesuction = rmiddle + thickness* (s-rmiddle);
-    POINT middlepressure = rmiddle - thicknesp* (s-rmiddle);
+    POINT s = bezierline.calcNorm2D(posthickness);
+    POINT rmiddle = rmiddle_tmp + thicknesp* s;
+    POINT middlesuction = rmiddle + thickness* s;//(s-rmiddle);
+    POINT middlepressure = rmiddle - thickness* s;//(s-rmiddle);
 
 
     //-----------------------construct the blade
@@ -290,7 +426,7 @@ public:
     pointsuction.push_back(leadingedge3.calcPoint(0.0));
     pointsuction.push_back(leadingedge3.calcPoint(.01));
     SPLINE suctionside(pointsuction);
-    deque<POINT> suctionside_dis = discretizeLineS(suctionside, nsuction, true, true,
+    deque<POINT> suctionside_dis = discretizeLineS(suctionside, nsuction, false, true,
     		suctionside.controlPt[1].s,suctionside.controlPt[suctionside.iEnd-1].s  );
 
     //pressureside
@@ -301,51 +437,19 @@ public:
     pointpressure.push_back(leadingedge3.calcPoint(1.0));
     pointpressure.push_back(leadingedge3.calcPoint(0.99));
     SPLINE pressureside(pointpressure);
-    deque<POINT> pressureside_dis = discretizeLineS(pressureside, npressure, true, false,
-     		pressureside.controlPt[1].s,suctionside.controlPt[pressureside.iEnd-1].s  );
+    deque<POINT> pressureside_dis = discretizeLineS(pressureside, npressure, false, false,
+     		pressureside.controlPt[1].s,pressureside.controlPt[pressureside.iEnd-1].s  );
 
     //-----------------------make the blade boundary points
     deque<POINT> tmp_blade[] = {suctionside_dis, leadingedge_dis , pressureside_dis, trailingedge_dis };
     deque< deque<POINT> > tmp_blade2 (tmp_blade, tmp_blade+sizeof(tmp_blade)/ sizeof(deque<POINT>));
     deque<POINT> meshpts = addDeques(tmp_blade2);
-
+    POINT tmp2 = meshpts[0];
+    meshpts.push_back(tmp2);
     for (int i=0; i<meshpts.size();i++)
     {
     	meshpts[i].rotateDegZ(-stagger_deg/2);
     }
-
-    // ------------------------- structured mesh around the blade
-    int nblade = meshpts.size();
-    double distrBladeRad[nbladeBL];
-
-    firstLengthDistr(first_l, nbladeBL, distrBladeRad);
-    STRUCTMESH bladeBL(nblade, nbladeBL);
-    deque<POINT> ext_BL_pts;
-    for (int i=0; i<nblade; i++)
-    {
-      POINT tan;    //tangent vector to the surface of the blade profile
-      if    ((i==0) || (i==nblade-1)) tan = meshpts[1] - meshpts[meshpts.size()-2];
-      else                            tan = meshpts[i+1] - meshpts[i-1];
-
-      POINT rad(tan.y, -tan.x);     //rad is perpendicular to tan and therefore to the blade profile
-      double mag = sqrt(rad.x*rad.x + rad.y*rad.y);
-      rad.x /= mag;
-      rad.y /= mag;
-
-      for (int j=0; j<nbladeBL; j++)
-      {
-
-        bladeBL.mesh[i][j] = meshpts[i] + distrBladeRad[j]*thickBL*rad;
-        POINT gus(bladeBL.mesh[i][j]) ;
-        if ((isnan(gus.x)!=0) || (isnan(gus.y)!=0))
-        {firstLengthDistr(first_l, nbladeBL, distrBladeRad);     //only first lenght distribution
-          cout<<"i is " << i <<endl;
-        }
-      }
-      POINT tmp1(bladeBL.mesh[i][nbladeBL-1]);
-      ext_BL_pts.push_back(tmp1);
-    }
-
 
 
     //---------------------construct the boundary
@@ -371,96 +475,75 @@ public:
 
     deque<POINT> boundary = addDeques(tmp_boundary2);
 
+    //make height distribution
+
+
+    // ------------------------- structured mesh around the blade
+
+
+    int nblade = meshpts.size();
+        double distrBladeRad[nbladeBL];
+
+        firstLengthDistr(first_l, nbladeBL, distrBladeRad);
+        STRUCTMESH bladeBL(nblade, nbladeBL);
+        deque<POINT> ext_BL_pts;
+        for (int i=0; i<nblade; i++)
+        {
+          POINT tan;    //tangent vector to the surface of the blade profile
+          if    ((i==0) || (i==nblade-1)) tan = meshpts[1] - meshpts[meshpts.size()-2];
+          else                            tan = meshpts[i+1] - meshpts[i-1];
+
+          POINT rad(tan.y, -tan.x);     //rad is perpendicular to tan and therefore to the blade profile
+          double mag = sqrt(rad.x*rad.x + rad.y*rad.y);
+          rad.x /= mag;
+          rad.y /= mag;
+
+          for (int j=0; j<nbladeBL; j++)
+          {
+
+            bladeBL.mesh[i][j] = meshpts[i] + distrBladeRad[j]*thickBL*rad;
+            POINT gus(bladeBL.mesh[i][j]) ;
+            if ((isnan(gus.x)!=0) || (isnan(gus.y)!=0))
+            {firstLengthDistr(first_l, nbladeBL, distrBladeRad);     //only first lenght distribution
+              cout<<"i is " << i <<endl;
+            }
+          }
+          POINT tmp1(bladeBL.mesh[i][nbladeBL-1]);
+          ext_BL_pts.push_back(tmp1);
+        }
+
+    UNSTRUCTMESH unstructbladeBL=(bladeBL);
+
     //make unstructured mesh
     TRIANGULATE mesh;
     mesh.extBoundary = boundary;
-    mesh.triangParameters = "pq30a0.01FDY";
     HOLE hole;
     hole.holesPoints = ext_BL_pts;
     rlead.rotateDegZ(-stagger_deg/2);
     hole.insidePoints = rlead;
     mesh.holes.push_back(hole);
 
+    //mesh.triangParameters = "pq30a0.01FDY";
+    double triangSize = getDoubleParam("TRIAGSIZE");
+
+    char param[200];
+    sprintf(param, "pq30a%fFDY", triangSize);
+    printf("size = %s", param);
+
+    mesh.triangParameters = param;
+    int smooth = getIntParam("smooth");
+
     mesh.unstructuredMesh2D();
 
-    //addToDisplay(suctionside);
-    //deque<POINT> testt;
-    //POINT neww(-s.x, -s.y,0.0);
-    //testt.push_back(neww);
-    //testt.push_back(rmiddle);
-    //testt.push_back(s);
-    //LINE linetest(testt);
-    //addToDisplay(linetest);
-
-    addToDisplay(bladeBL);
-    addToDisplay(test);
-    //bezierline.rotateDegZ(-stagger_deg/2);
-    //addToDisplay(bezierline);
-    //addToDisplay(rmiddle);
-    //addToDisplay(blade);
-    //addToDisplay(suctionside_dis);
-    //addToDisplay(pressureside_dis);
-
-    //addToDisplay(pressureside);
+    //UNSTRUCTMESH combinedmesh =  mesh;
+    //mesh.smoothMesh(smooth, 1e-12);
+    UNSTRUCTMESH mesh3d = mesh2Dto3D(mesh,0.1,2 );
 
 
-    //addToDisplay(camberline);
-    middlesuction.rotateDegZ(-stagger_deg/2);
-    middlepressure.rotateDegZ(-stagger_deg/2);
-    addToDisplay(middlesuction);
-    addToDisplay(middlepressure);
-    //addToDisplay(trailingedge_dis[1]);
-    //addToDisplay(leadingedge_dis[1]);
-
-    //addToDisplay(rtrail);
-    //addToDisplay(rmiddle);
-    //addToDisplay(leadingedge3);
-    //addToDisplay(trailingedge3);
-    //addToDisplay(bezierpointdis);
-
-    //addToDisplay(trailingedge);
+    addToDisplay(mesh3d);
 
 
-//
-    addToDisplay(mesh);
 
-//
-    addToDisplay(innerline);
-    addToDisplay(outerline);
-    addToDisplay(topline);
-    addToDisplay(bottomline);
-//    addToDisplay(innerpoints);
-//	addToDisplay(outerpoints);
-//	addToDisplay(top);
-//	addToDisplay(outerpoints[1]);
-//	addToDisplay(innerpoints[1]);
-//	addToDisplay(toppoints[1]);
-//	addToDisplay(bottompoints[1]);
-    //
-//    addToDisplay(e);
-//    addToDisplay(line2);
-//    addToDisplay(line3);
-//    addToDisplay(line4);
-
-
-//POINT c(cos( angle/2 )*Rout , sin(angle/2)*Rout, 0.0);
-//    deque<POINT> points;
-
-//    for (int i=0; i<50; i++)
-//    	points.pushback
-//    points.push_back(a);
-//	points.push_back(b);
-//	points.push_back(c);
-
-//	points.push_back(d);
-//    points.push_back(a);
-    //draw the lines
-//    LINE ab(points);
-//    addToDisplay(ab);
-//    addToDisplay(a);
-//    addToDisplay(b);
-//    addToDisplay(c);
-//    addToDisplay(d);
 //--------------------------------------------------------
     bCurrTransform = bTransform = false;
     printHelp();
