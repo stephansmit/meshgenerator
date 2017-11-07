@@ -1481,7 +1481,7 @@ UNSTRUCTMESH MESHTOOLS::buildMesh3D(deque<SPANLEVEL> &layers2D, const int nLayer
 //  }
 //  return(mesh3D);
 //}
-UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz, const int kmax=2)
+UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double a, const double b, const double c, const double Rmax, const int kmax=2)
 {
    UNSTRUCTMESH mesh3D;
 
@@ -1520,7 +1520,9 @@ UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz, c
      for (int i=0; i<nno_i; i++)
      {
        NODE tmp = mesh2D.nodes[i];
-       tmp.pt += POINT(0.0,0.0,(double)k/((double)kmax-1)*dz);
+       POINT tmppoint = tmp.pt;
+
+       tmp.pt += POINT(0.0,0.0,(double)k/((double)kmax-1)*(a+b*(Rmax-tmppoint.radZ())+ c*(Rmax-tmppoint.radZ())*(Rmax-tmppoint.radZ())));
        mesh3D.nodes.push_back(tmp);
      }
    //-----------------------------------------
@@ -1530,7 +1532,8 @@ UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz, c
      for (int i=nno_i; i<nvert; i++)
      {
        NODE tmp = mesh2D.nodes[i];
-       tmp.pt += POINT(0.0,0.0,(double)k/((double)kmax-1)*dz);
+       POINT tmppoint = tmp.pt;
+       tmp.pt += POINT(0.0,0.0,(double)k/((double)kmax-1)*(a+b*(Rmax-tmppoint.radZ())+ c*(Rmax-tmppoint.radZ())*(Rmax-tmppoint.radZ())));
        mesh3D.nodes.push_back(tmp);
      }
    int nno_i_3D = kmax*nno_i;
