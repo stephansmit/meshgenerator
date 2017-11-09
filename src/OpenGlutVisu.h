@@ -221,6 +221,7 @@ public:
   deque<POINT> pts;
   deque<LINE> lines;
   deque<SPLINE> splines;
+  deque<BEZIER> bezierlines;
   deque<UNSTRUCTMESH> umeshes;
   deque<STRUCTMESH> smeshes;
 
@@ -252,6 +253,7 @@ public:
     pts.clear();
     lines.clear();
     splines.clear();
+    bezierlines.clear();
     umeshes.clear();
     smeshes.clear();
     resetMinMax();
@@ -278,6 +280,9 @@ public:
 
     for (int i=0; i<splines.size(); i++)
       for (int j=0; j<splines[i].size(); j++)     setMinMax(splines[i][j]);
+    for (int i=0; i<bezierlines.size(); i++)
+      for (int j=0; j<bezierlines[i].size(); j++)     setMinMax(bezierlines[i][j]);
+
 
     for (int u=0; u<umeshes.size(); u++)
       for (int i=0; i<umeshes[u].nodes.size(); i++)  setMinMax(umeshes[u].nodes[i].pt);
@@ -312,7 +317,12 @@ public:
     for (int i=0; i<line.size(); i++)
       setMinMax(line[i]);
   }
-
+  void addToDisplay(BEZIER &line)
+  {
+    bezierlines.push_back(line);
+    for (int i=0; i<line.size(); i++)
+      setMinMax(line[i]);
+  }
   void addToDisplay(UNSTRUCTMESH &mesh)
   {
     umeshes.push_back(mesh);
@@ -369,6 +379,7 @@ public:
     for (int i=0; i<umeshes.size(); i++)  umeshes[i].drawMesh();
     for (int i=0; i<smeshes.size(); i++)  smeshes[i].drawMesh();
     for (int i=0; i<splines.size(); i++)  splines[i].drawLine();
+    for (int i=0; i<bezierlines.size(); i++)  bezierlines[i].drawLine();
     for (int i=0; i<lines.size(); i++)    lines[i].drawLine();
     glDisable(GL_POLYGON_OFFSET_LINE);
 

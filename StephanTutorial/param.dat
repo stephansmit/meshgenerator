@@ -2,15 +2,16 @@ fileName = BladeGen_profile.curve
 
 
 ###DESIGNVARIABLES####
-stagger_deg = 2.0
+stagger_deg = 3.0
 alphalead=50
 alphatrail=10
-thickness=0.0022
-thicknesp=0.0015
+thickness=0.0016
+thicknesp=0.00
 heightb=0.2
 heightc=1
-posthickness=0.9
-
+posthickness=0.97	
+test1=0.45
+test2=0.7
 
 
 smooth=10000
@@ -22,7 +23,7 @@ Rleading=0.28
 Rin = 0.18
 Rout = 0.3
 Radtrailing=0.0007
-Radleading=0.0015
+Radleading=0.00125
 TRIAGSIZE = 0.000003
 
 ###DISCRETIZATION
