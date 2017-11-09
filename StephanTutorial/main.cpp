@@ -8,7 +8,8 @@
 #include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
-
+#include <iostream>
+#include <fstream>
 #include <iostream>
 #include <deque>
 #include <algorithm>
@@ -269,7 +270,7 @@ public:
     // make sure to re-read the file and to delete copies in visu
     clearParamMap();
     addParamsFromFile("param.dat");
-    clearVisu();
+    //clearVisu();
 
 
 //--------------------------------------------------------
@@ -291,7 +292,8 @@ public:
     double heighta = getDoubleParam("heighta");
     double heightb = getDoubleParam("heightb");
     double heightc = getDoubleParam("heightc");
-
+    double blead = getDoubleParam("btrail");
+    double btrail = getDoubleParam("blead");
     int ntrail = getIntParam("ntrail");
     int nlead = getIntParam("nlead");
     int nsuction = getIntParam("nsuction");
@@ -352,10 +354,9 @@ public:
 
     //construct the bezierline
     deque<POINT> bezierpoints2;
-    double test1 = getDoubleParam("test1");
-    double test2 = getDoubleParam("test2");
-    POINT tmppoint1 = beziertrailline.calcPoint(test1);
-    POINT tmppoint2 = bezierleadline.calcPoint(test2);
+
+    POINT tmppoint1 = beziertrailline.calcPoint(btrail);
+    POINT tmppoint2 = bezierleadline.calcPoint(blead);
     bezierpoints2.push_back(rlead);bezierpoints2.push_back(tmppoint2); bezierpoints2.push_back(tmppoint1);bezierpoints2.push_back(rtrail);
     BEZIER beziercurve2(bezierpoints2);
 //    deque<POINT> bezierpointdis2 = discretizeBezier(beziercurve2,1000, true, false);
@@ -409,7 +410,6 @@ public:
      		pressureside.controlPt[1].s,pressureside.controlPt[pressureside.iEnd-1].s  );
 
 
-
     //---------------------construct the boundary
     //make the camberlines
     deque<POINT> camberlinepoints;
@@ -429,6 +429,17 @@ public:
     deque<POINT> meshpts = addDeques(tmp_blade2);
     POINT tmp2 = meshpts[0];
     meshpts.push_back(tmp2);
+
+
+    ofstream myfile;
+    myfile.open ("blade.txt");
+    myfile << "x,y\n";
+    for (int i=0; i<meshpts.size(); i++) {
+    	myfile << meshpts[i].x << ", " << meshpts[i].y << "\n";
+    }
+    //myfile << "Writing this to a file.\n";
+    myfile.close();
+
     //make the corners
     POINT bstarttop(cos( angle_rad/2)*Rin , -sin(angle_rad/2)*Rin, 0.0);
     POINT bendtop(cos( angle_rad/2 )*Rout , -sin(angle_rad/2)*Rout, 0.0);
@@ -565,14 +576,14 @@ public:
     //
 
 
-   // addToDisplay(mesh2D);
-    addToDisplay(mesh2D);
-    addToDisplay(camberlinebot);
-    addToDisplay(camberlinetop);
-    addToDisplay(btopline0);
-    addToDisplay(btopline2);
-    addToDisplay(bbotline0);
-    addToDisplay(bbotline2);
+//   // addToDisplay(mesh2D);
+//    addToDisplay(mesh2D);
+//    addToDisplay(camberlinebot);
+//    addToDisplay(camberlinetop);
+//    addToDisplay(btopline0);
+//    addToDisplay(btopline2);
+//    addToDisplay(bbotline0);
+//    addToDisplay(bbotline2);
 
 
 
@@ -637,13 +648,15 @@ Singleton * Singleton::instance = NULL;
 
 int main(int argc, char *argv[])
 {
-  initOpenGl(argc, argv);
-
-  Singleton *radialComp = Singleton::instanciate("param.dat");
-
-  glutDisplayFunc(radialComp->display);
-  glutIdleFunc(radialComp->reMakeMesh);
-  glutMainLoop();
+//	makeMesh();
+//  initOpenGl(argc, argv);
+//
+    Singleton *radialComp = Singleton::instanciate("param.dat");
+    radialComp->makeMesh();
+//
+//  glutDisplayFunc(radialComp->display);
+//  glutIdleFunc(radialComp->reMakeMesh);
+//  glutMainLoop();
 
   return 0;
 }

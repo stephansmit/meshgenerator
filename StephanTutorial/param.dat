@@ -10,8 +10,8 @@ thicknesp=0.00
 heightb=0.2
 heightc=1
 posthickness=0.97	
-test1=0.45
-test2=0.7
+btrail=0.45
+blead=0.7
 
 
 smooth=10000
