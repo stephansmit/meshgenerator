@@ -294,6 +294,8 @@ public:
     double heightc = getDoubleParam("heightc");
     double blead = getDoubleParam("btrail");
     double btrail = getDoubleParam("blead");
+    double positionblade = getDoubleParam("positionblade");
+
     int ntrail = getIntParam("ntrail");
     int nlead = getIntParam("nlead");
     int nsuction = getIntParam("nsuction");
@@ -375,7 +377,8 @@ public:
     SPLINE bezierline(bezierpointdis);
     POINT rmiddle_tmp = bezierline.calcPoint(posthickness);
     SPLINE test = bezierline;
-    bezierline.calcDerivative();
+    //test.
+    //bezierline.calcDerivative();
 
 
 
@@ -410,14 +413,17 @@ public:
      		pressureside.controlPt[1].s,pressureside.controlPt[pressureside.iEnd-1].s  );
 
 
-    //---------------------construct the boundary
     //make the camberlines
     deque<POINT> camberlinepoints;
     for (int i=0; i<=100; i++){
     	double s = (double)i/100;
     	camberlinepoints.push_back((pressureside.calcPoint(s)+suctionside.calcPoint(s))/2.0);
     }
-    SPLINE camberline(camberlinepoints);
+
+    SPLINE camberline_tmp(camberlinepoints);
+    POINT point_tmp(0,positionblade,0);
+
+    SPLINE camberline(translateLine(camberline_tmp, point_tmp));
     SPLINE camberlinebot;
     SPLINE camberlinetop;
     camberlinebot = camberline;
@@ -429,6 +435,11 @@ public:
     deque<POINT> meshpts = addDeques(tmp_blade2);
     POINT tmp2 = meshpts[0];
     meshpts.push_back(tmp2);
+    for (int i=0; i<meshpts.size(); i++){
+    	meshpts[i]=meshpts[i]+point_tmp;
+    }
+
+
 
 
     ofstream myfile;
@@ -439,6 +450,9 @@ public:
     }
     //myfile << "Writing this to a file.\n";
     myfile.close();
+
+    addToDisplay(camberline);
+    //---------------------construct the boundary
 
     //make the corners
     POINT bstarttop(cos( angle_rad/2)*Rin , -sin(angle_rad/2)*Rin, 0.0);
@@ -478,12 +492,11 @@ public:
 
 
 
-
-    //---------------------------make height distribution
-
-
-
-
+//    //---------------------------make height distribution
+//
+//
+//
+//
 
     // ------------------------- structured mesh around the blade
     int nblade = meshpts.size();
@@ -514,20 +527,19 @@ public:
           ext_BL_pts.push_back(tmp1);
         }
     UNSTRUCTMESH unstructbladeBL=(bladeBL);
-
-
-
-
-
-
+//
+////
+////
+////
+////
+//
     //-----------------------------------make unstructured mesh
     TRIANGULATE mesh;
     mesh.extBoundary = boundary;
     HOLE hole;
     hole.holesPoints = ext_BL_pts;
-    hole.insidePoints = rlead;
+    hole.insidePoints = rlead+point_tmp;
     mesh.holes.push_back(hole);
-    //mesh.triangParameters = "pq30a0.01FDY";
     double triangSize = getDoubleParam("TRIAGSIZE");
     char param[200];
     sprintf(param, "pq30a%fFDY", triangSize);
@@ -537,47 +549,48 @@ public:
     mesh.smoothMesh(smooth, 1e-12);
     mesh.unstructuredMesh2D();
 
-
+//
 
 //
 //
-//    //-----------------------------------create combined mesh
+    //-----------------------------------create combined mesh
     UNSTRUCTMESH mesh2D =  mesh + unstructbladeBL;
-    //UNSTRUCTMESH mesh3d = mesh2Dto3D(combinedmesh,heighta,heightb,heightc,Rout, 3 );
-//    mesh2D.findFaces2D_obj();
-//
-//    for(int i=mesh2D.nfa_i; i<mesh2D.faces.size(); i++)
-//    {
-//		if(strcmp (mesh2D.faces[i].name,"noname") == 0)
-//		{
-//		  POINT node0= mesh2D.nodes[mesh2D.faces[i].node[0]].pt;
-//		  POINT node1= mesh2D.nodes[mesh2D.faces[i].node[1]].pt;
-//
-//		  double tmp_rad1= node0.radZ();
-//		  double tmp_rad2= node1.radZ();
-//
-//
-//
-//		  double tmp_x1= node0.x;
-//		  double tmp_x2= node1.x;
-//		  double tmp_y1= node0.y;
-//		  double tmp_y2= node1.y;
-//
-//
-//		  if((fabs(tmp_rad1-Rin)<0.0000001) &&
-//		(fabs(tmp_rad2-Rin)<0.0000001))
-//			strcpy (mesh2D.faces[i].name,"inlet");
-//		  else if((fabs(tmp_rad1-Rout)<0.0000001) &&
-//		(fabs(tmp_rad2-Rout)<0.0000001))
-//			strcpy (mesh2D.faces[i].name,"outlet");
-//		 }
-//    }
-//    mesh2D.writeFluentMsh_Original("test.msh",2);
+    UNSTRUCTMESH mesh3d = mesh2Dto3D(mesh2D,heighta,heightb,heightc,Rout, 3 );
+    mesh2D.findFaces2D_obj();
+
+    for(int i=mesh2D.nfa_i; i<mesh2D.faces.size(); i++)
+    {
+		if(strcmp (mesh2D.faces[i].name,"noname") == 0)
+		{
+		  POINT node0= mesh2D.nodes[mesh2D.faces[i].node[0]].pt;
+		  POINT node1= mesh2D.nodes[mesh2D.faces[i].node[1]].pt;
+
+		  double tmp_rad1= node0.radZ();
+		  double tmp_rad2= node1.radZ();
+
+
+
+		  double tmp_x1= node0.x;
+		  double tmp_x2= node1.x;
+		  double tmp_y1= node0.y;
+		  double tmp_y2= node1.y;
+
+
+		  if((fabs(tmp_rad1-Rin)<0.0000001) &&
+		(fabs(tmp_rad2-Rin)<0.0000001))
+			strcpy (mesh2D.faces[i].name,"inlet");
+		  else if((fabs(tmp_rad1-Rout)<0.0000001) &&
+		(fabs(tmp_rad2-Rout)<0.0000001))
+			strcpy (mesh2D.faces[i].name,"outlet");
+		 }
+    }
+    mesh2D.writeFluentMsh_Original("test.msh",2);
     //
 
 
-   // addToDisplay(mesh2D);
-    addToDisplay(mesh2D);
+    addToDisplay(mesh);
+    addToDisplay(unstructbladeBL);
+    addToDisplay(meshpts);
     addToDisplay(camberlinebot);
     addToDisplay(camberlinetop);
     addToDisplay(btopline0);
