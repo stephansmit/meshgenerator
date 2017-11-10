@@ -557,7 +557,6 @@ public:
     UNSTRUCTMESH mesh2D =  mesh + unstructbladeBL;
     UNSTRUCTMESH mesh3d = mesh2Dto3D(mesh2D,heighta,heightb,heightc,Rout, 3 );
     mesh2D.findFaces2D_obj();
-
     for(int i=mesh2D.nfa_i; i<mesh2D.faces.size(); i++)
     {
 		if(strcmp (mesh2D.faces[i].name,"noname") == 0)
@@ -582,21 +581,34 @@ public:
 		  else if((fabs(tmp_rad1-Rout)<0.0000001) &&
 		(fabs(tmp_rad2-Rout)<0.0000001))
 			strcpy (mesh2D.faces[i].name,"outlet");
-		 }
+		  //else if(std::find(toppoints1.begin(), toppoints1.end(), node1) == toppoints0.end()){
+		  //	  			std::cout << "IMHERE" << std::endl;
+		  }
+		}
+
     }
-    mesh2D.writeFluentMsh_Original("test.msh",2);
-    //
+//
+//    deque<string> BC_names;
+//    BC_names.push_back("inlet");
+//    BC_names.push_back("outlet");
+//    BC_names.push_back("fluid");
+//    mesh2D.n_zone =BC_names.size();
+//    mesh2D.writeFluentMsh_obj("botMesh.msh",2, BC_names);
+//    //
 
-
-    addToDisplay(mesh);
-    addToDisplay(unstructbladeBL);
-    addToDisplay(meshpts);
-    addToDisplay(camberlinebot);
-    addToDisplay(camberlinetop);
-    addToDisplay(btopline0);
-    addToDisplay(btopline2);
-    addToDisplay(bbotline0);
-    addToDisplay(bbotline2);
+      deque<POINT> checkl;
+      POINT pointa =point(0,0,0);
+      POINT pointb = point(0,0,1);
+      checkl.push_back(pointa);checkl.push_back(pointb);
+      addToDisplay(mesh2D);
+//    addToDisplay(unstructbladeBL);
+//    addToDisplay(meshpts);
+//    addToDisplay(camberlinebot);
+//    addToDisplay(camberlinetop);
+//    addToDisplay(btopline0);
+//    addToDisplay(btopline2);
+//    addToDisplay(bbotline0);
+//    addToDisplay(bbotline2);
 
 
 
