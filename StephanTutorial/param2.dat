@@ -2,14 +2,14 @@ fileName = BladeGen_profile.curve
 
 
 ###DESIGNVARIABLES####
-stagger_deg=3.0
+stagger_deg=1
 alphalead=50
 alphatrail=10
-thickness=0.0010
+thickness=0.0002
 thicknesp=0.00
 heightb=0.2
 heightc=1
-posthickness=0.97	
+posthickness=0.9
 btrail=0.1
 blead=0.1
 

@@ -270,7 +270,7 @@ public:
     // make sure to re-read the file and to delete copies in visu
     clearParamMap();
     addParamsFromFile("param.dat");
-    //clearVisu();
+    clearVisu();
 
 
 //--------------------------------------------------------
@@ -576,14 +576,14 @@ public:
     //
 
 
-//   // addToDisplay(mesh2D);
-//    addToDisplay(mesh2D);
-//    addToDisplay(camberlinebot);
-//    addToDisplay(camberlinetop);
-//    addToDisplay(btopline0);
-//    addToDisplay(btopline2);
-//    addToDisplay(bbotline0);
-//    addToDisplay(bbotline2);
+   // addToDisplay(mesh2D);
+    addToDisplay(mesh2D);
+    addToDisplay(camberlinebot);
+    addToDisplay(camberlinetop);
+    addToDisplay(btopline0);
+    addToDisplay(btopline2);
+    addToDisplay(bbotline0);
+    addToDisplay(bbotline2);
 
 
 
@@ -649,14 +649,14 @@ Singleton * Singleton::instance = NULL;
 int main(int argc, char *argv[])
 {
 //	makeMesh();
-//  initOpenGl(argc, argv);
+  initOpenGl(argc, argv);
 //
-    Singleton *radialComp = Singleton::instanciate("param.dat");
-    radialComp->makeMesh();
+  Singleton *radialComp = Singleton::instanciate("param.dat");
+//    radialComp->makeMesh();
 //
-//  glutDisplayFunc(radialComp->display);
-//  glutIdleFunc(radialComp->reMakeMesh);
-//  glutMainLoop();
+  glutDisplayFunc(radialComp->display);
+  glutIdleFunc(radialComp->reMakeMesh);
+  glutMainLoop();
 
   return 0;
 }
