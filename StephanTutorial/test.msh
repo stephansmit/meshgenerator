@@ -1,0 +1,17 @@
+(0 "Project to Fluent")
+
+(0 "Dimensions:")
+(2 3)
+
+(0 "Grid:")
+
+(12 (0 1 0 0))
+(13 (0 1 0 0))
+(10 (0 1 0 0 3))
+
+(0 "Cells:")
+(12 (fa1 1 0 1 7))
+(45 (4001 fluid fluid)())
+
+(0 "Faces:")
+

@@ -1647,9 +1647,10 @@ void UNSTRUCTMESH::writeFluentMsh(const char *filename, int ndim, deque<string> 
   for(int i=0; i<nfaces; i++)
     if(strcmp (faces[i].name, "noname") == 0)
     {
+
       zone_noname=true;
-      cout<<"WARNING: At least one of the faces was not named! All the face zones will be named together as: boundaries"<<endl;
-      break;
+      cout<<"WARNING: At least one of the faces was not named! All the face zones will be named together as: boundaries"<< i <<endl;
+      //break;
     }
 
   cout<<"Number of elements: "<< elements <<endl;
