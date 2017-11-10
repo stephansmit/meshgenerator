@@ -556,7 +556,7 @@ public:
     //-----------------------------------create combined mesh
     UNSTRUCTMESH mesh2D =  mesh + unstructbladeBL;
     //UNSTRUCTMESH mesh3d = mesh2Dto3D(mesh2D,heighta,heightb,heightc,Rout, 3 );
-    mesh2D.findFaces2D_obj();
+    //mesh2D.findFaces2D_obj();
     for(int i=mesh2D.nfa_i; i<mesh2D.faces.size(); i++)
     {
 		if(strcmp (mesh2D.faces[i].name,"noname") == 0)
