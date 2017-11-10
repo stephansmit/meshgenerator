@@ -555,7 +555,7 @@ public:
 //
     //-----------------------------------create combined mesh
     UNSTRUCTMESH mesh2D =  mesh + unstructbladeBL;
-    UNSTRUCTMESH mesh3d = mesh2Dto3D(mesh2D,heighta,heightb,heightc,Rout, 3 );
+    //UNSTRUCTMESH mesh3d = mesh2Dto3D(mesh2D,heighta,heightb,heightc,Rout, 3 );
     mesh2D.findFaces2D_obj();
     for(int i=mesh2D.nfa_i; i<mesh2D.faces.size(); i++)
     {
@@ -575,18 +575,15 @@ public:
 		  double tmp_y2= node1.y;
 
 
-		  if((fabs(tmp_rad1-Rin)<0.0000001) &&
-		(fabs(tmp_rad2-Rin)<0.0000001))
+		  if((fabs(tmp_rad1-Rin)<0.0000001) && (fabs(tmp_rad2-Rin)<0.0000001))
 			strcpy (mesh2D.faces[i].name,"inlet");
-		  else if((fabs(tmp_rad1-Rout)<0.0000001) &&
-		(fabs(tmp_rad2-Rout)<0.0000001))
+		  else if((fabs(tmp_rad1-Rout)<0.0000001) && (fabs(tmp_rad2-Rout)<0.0000001))
 			strcpy (mesh2D.faces[i].name,"outlet");
-		  //else if(std::find(toppoints1.begin(), toppoints1.end(), node1) == toppoints0.end()){
-		  //	  			std::cout << "IMHERE" << std::endl;
-		  }
+		  else if (find(toppoints0.begin(), toppoints0.end(), node1) != toppoints0.end())
+		  	cout << "IMHERE" << std::endl;
 		}
-
     }
+
 //
 //    deque<string> BC_names;
 //    BC_names.push_back("inlet");
@@ -597,9 +594,15 @@ public:
 //    //
 
       deque<POINT> checkl;
-      POINT pointa =point(0,0,0);
-      POINT pointb = point(0,0,1);
-      checkl.push_back(pointa);checkl.push_back(pointb);
+      POINT pointa(0,0,0);
+      POINT pointb(0,0,1);
+      POINT pointc(0,0,1.5);
+      POINT pointd(0,1,1.5);
+      POINT pointe(0,0,1);
+      checkl.push_back(pointa);checkl.push_back(pointb);checkl.push_back(pointc);checkl.push_back(pointd);
+      if(find(checkl.begin(), checkl.end(), pointe) != checkl.end()){
+    	 cout << "IMHERE" << std::endl;
+      }
       addToDisplay(mesh2D);
 //    addToDisplay(unstructbladeBL);
 //    addToDisplay(meshpts);
