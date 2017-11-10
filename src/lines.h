@@ -201,6 +201,8 @@ public:
 
   void calcDerivative();
 
+  double findS(POINT p);
+
   /*! \brief spline offset
    *
    */
@@ -208,6 +210,9 @@ public:
 
 
   POINT calcNorm2D(double t) const;
+
+  POINT calcNorm2D_offset(double t, double offset1 = 0.0, double offset2 = 1.0) const;
+
 
   virtual void drawLine();
 

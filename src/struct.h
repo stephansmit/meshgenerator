@@ -31,7 +31,7 @@ public:
   int imax, jmax;
 
 public:
-  STRUCTMESH() : imax(0), jmax(0), mesh(NULL) {}
+  STRUCTMESH() : imax(0), jmax(0), mesh() {}//mesh(NULL) {}
 
   void init(int imax_, int jmax_)
   {
@@ -87,6 +87,8 @@ public:
 
   void writeMeshTec2D(const char *name);
 
+  STRUCTMESH structBlockMesh2D_splines(SPLINE &bottom, SPLINE &top, const int imax, const int jmax, const double firstLength,
+                                    const int interp=0, const double par1=1.0, const double par2=1.0);
 
   void drawMesh();
 

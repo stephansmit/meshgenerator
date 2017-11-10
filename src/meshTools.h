@@ -255,20 +255,13 @@ public:
    *  \param interpScheme interpolation scheme
    *
    */
-  UNSTRUCTMESH buildMesh3D(deque<SPANLEVEL> &layers2D, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme);
+  UNSTRUCTMESH buildMesh3D_old(deque<SPANLEVEL> &layers2D, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme);
 
-  UNSTRUCTMESH mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz);
+  UNSTRUCTMESH mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz, const int kmax=2, const int interp=0, const double par1=1.0, const double par2=1.0);
 
-  UNSTRUCTMESH buildMesh3DNew(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme);  //GUSTAVO 15/06/16
+  UNSTRUCTMESH buildMesh3D(deque<UNSTRUCTMESH> &layers2D, const int kmax, const string &interpScheme="LINE", const string &bc_name_above="top", const string &bc_name_below="bottom", const double par1=1., const double par2=1., const int interp=0, const string &span_distribution="no") ;  //GUSTAVO 22/08/16
 
-  UNSTRUCTMESH buildMesh3DNewwithFace(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme) ;  //GUSTAVO 15/06/16
-
-  UNSTRUCTMESH buildMesh3DNewwithFace_obj(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme) ;  //GUSTAVO 22/08/16
-
-
-  void writeFluentMsh_Interface(const char *filename, const UNSTRUCTMESH meshL, const UNSTRUCTMESH meshR, deque<string> bc_names );  //GUSTAVO 15/06/16
-
-  void writeFluentMsh_Interface_obj(const char *filename, const UNSTRUCTMESH meshL, const UNSTRUCTMESH meshR, deque<string> bc_names );  //GUSTAVO 22/08/16
+  void writeFluentMsh_Interface(const char *filename, const UNSTRUCTMESH meshL, const UNSTRUCTMESH meshR, deque<string> bc_names );  //GUSTAVO 22/08/16
 
   void readPts2D(deque<POINT> &pts, const string &name)
   {

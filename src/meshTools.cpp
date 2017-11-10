@@ -355,22 +355,35 @@ STRUCTMESH MESHTOOLS::makeMeshEdge(const SPLINE &line, const int imax, const int
 //	  line2[i] =  tmp_line2.calcPoint(t[i]);
 
 	STRUCTMESH block(imax,jmax);
+	if(firstLength>0)
+	  for (int i=0; i<line1.size(); i++)
+	  {
+	    POINT p1 = line1[i];
+	    POINT p2 = line2[i];
 
-	for (int i=0; i<line1.size(); i++)
-	{
-		POINT p1 = line1[i];
-		POINT p2 = line2[i];
+	    double radDist[jmax];
+	    firstLengthDistr(firstLength/mag(p2-p1), jmax, radDist);
 
-		double radDist[jmax];
-		firstLengthDistr(firstLength/mag(p2-p1), jmax, radDist);
+	    for (int j=0; j<block.jmax; j++)
+	    {
+	      block.mesh[i][j] = p1 + radDist[j]*(p2-p1);
+	      if(isnan(block.mesh[i][j].x) || isnan(block.mesh[i][j].y))
+	        cout<< "Not a Number"<< i <<" <-i, j-> "<< j <<" radDist: " << radDist[j]<<endl;
+	    }
+	  }
+	else
+	  for (int i=0; i<line1.size(); i++)
+	  {
+	    POINT p1 = line1[i];
+	    POINT p2 = line2[i];
 
-		for (int j=0; j<block.jmax; j++)
-		{
-			block.mesh[i][j] = p1 + radDist[j]*(p2-p1);
-			if(isnan(block.mesh[i][j].x) || isnan(block.mesh[i][j].y))
-			  cout<< "Not a Number"<< i <<" <-i, j-> "<< j <<" radDist: " << radDist[j]<<endl;
-		}
-	}
+	    for (int j=0; j<block.jmax; j++)
+	    {
+	      block.mesh[i][j] = p1 + (double)j/(double)(jmax-1)*(p2-p1);
+	      if(isnan(block.mesh[i][j].x) || isnan(block.mesh[i][j].y))
+	        cout<< "Not a Number"<< i <<" <-i, j-> "<< j <<" radDist: " << (double)j/(double)(jmax-1)<<endl;
+	    }
+	  }
 
 	return(block);
 }
@@ -421,18 +434,31 @@ STRUCTMESH MESHTOOLS::makeMeshEdgeSpecial(const SPLINE &line, //const SPLINE &li
   }
 
   STRUCTMESH block(imax,jmax);
+  if(firstLength>0)
+    for (int i=0; i<line1.size(); i++)
+    {
+      POINT p1 = line1[i];
+      POINT p2 = line2[i];
 
-  for (int i=0; i<line1.size(); i++)
-  {
-    POINT p1 = line1[i];
-    POINT p2 = line2[i];
+      double radDist[jmax];
+      firstLengthDistr(firstLength/mag(p2-p1), jmax, radDist);
 
-    double radDist[jmax];
-    firstLengthDistr(firstLength/mag(p2-p1), jmax, radDist);
+      for (int j=0; j<block.jmax; j++)
+        block.mesh[i][j] = p1 + radDist[j]*(p2-p1);
+    }
+  else
+    for (int i=0; i<line1.size(); i++)
+    {
+      POINT p1 = line1[i];
+      POINT p2 = line2[i];
 
-    for (int j=0; j<block.jmax; j++)
-      block.mesh[i][j] = p1 + radDist[j]*(p2-p1);
-  }
+      for (int j=0; j<block.jmax; j++)
+      {
+        block.mesh[i][j] = p1 + (double)j/(double)(jmax-1)*(p2-p1);
+        if(isnan(block.mesh[i][j].x) || isnan(block.mesh[i][j].y))
+          cout<< "Not a Number"<< i <<" <-i, j-> "<< j <<" radDist: " << (double)j/(double)(jmax-1)<<endl;
+      }
+    }
 
   return(block);
 }
@@ -1009,7 +1035,9 @@ UNSTRUCTMESH MESHTOOLS::makeTipMesh(const int nLE, const int nBOT, const int nTE
     tmp.push_back(tipCle1.mesh[imaxTC1-1][j]);
 
 
-  tipCle3.triangParameters = "pq30a0.000002FDY";
+  char triangparam[200];
+  sprintf(triangparam, "pq30a%fFDY", 0.000002); // triangle size
+  tipCle3.triangParameters = triangparam;
   tipCle3.extBoundary = tmp;
   tipCle3.unstructuredMesh2D();
   tipCle3.smoothMesh(getIntParam("nIterSmooth"), getDoubleParam("tollSmooth"));
@@ -1199,7 +1227,9 @@ SPANLEVEL MESHTOOLS::meshSpanLevel(bool tipMesh, const deque<POINT> &mainBlade, 
 
 
 //				char triPar[100] = getStringParam("triangleParameters").;
-		spanLevel.unstr.triangParameters = "pq30a0.0003FDY";
+           char triangparam[200];
+           sprintf(triangparam, "pq30a%fFDY", 0.0003); // triangle size
+		spanLevel.unstr.triangParameters = triangparam;
 		spanLevel.unstr.extBoundary = extpointsHub;
 		spanLevel.unstr.unstructuredMesh2D();
 		spanLevel.unstr.smoothMesh(getIntParam("nIterSmooth"), getDoubleParam("tollSmooth"));
@@ -1281,7 +1311,7 @@ void MESHTOOLS::moveMeshSpan(deque<POINT> &tcMPS, SPANLEVEL &spanLevel)
 }
 
 
-UNSTRUCTMESH MESHTOOLS::buildMesh3D(deque<SPANLEVEL> &layers2D, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme)
+UNSTRUCTMESH MESHTOOLS::buildMesh3D_old(deque<SPANLEVEL> &layers2D, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme)
 {
 
 
@@ -1298,22 +1328,22 @@ UNSTRUCTMESH MESHTOOLS::buildMesh3D(deque<SPANLEVEL> &layers2D, const int nLayer
 	if (startLayer==0)
 	{
 	  for (int s=0; s<layers2D.size(); s++)
-    {
-      deque<POINT> tmpPts;
-      for (int i=0; i<layers2D[s].faceMesh.nodes.size(); i++)
-        tmpPts.push_back(layers2D[s].faceMesh.nodes[i].pt);
-      points2D.push_back(tmpPts);
-    }
+	  {
+	    deque<POINT> tmpPts;
+	    for (int i=0; i<layers2D[s].faceMesh.nodes.size(); i++)
+	      tmpPts.push_back(layers2D[s].faceMesh.nodes[i].pt);
+	    points2D.push_back(tmpPts);
+	  }
 	}
 	else if (startLayer==1)
 	{
-    for (int s=layers2D.size()-1; s>=0; s--)
-    {
-      deque<POINT> tmpPts;
-      for (int i=0; i<layers2D[s].faceMesh.nodes.size(); i++)
-        tmpPts.push_back(layers2D[s].faceMesh.nodes[i].pt);
-      points2D.push_back(tmpPts);
-    }
+	  for (int s=layers2D.size()-1; s>=0; s--)
+	  {
+	    deque<POINT> tmpPts;
+	    for (int i=0; i<layers2D[s].faceMesh.nodes.size(); i++)
+	      tmpPts.push_back(layers2D[s].faceMesh.nodes[i].pt);
+	    points2D.push_back(tmpPts);
+	  }
 	}
 	else {printf("error in startLayer definition: must be either 0 or 1"); throw(-111);}
 
@@ -1457,88 +1487,923 @@ UNSTRUCTMESH MESHTOOLS::buildMesh3D(deque<SPANLEVEL> &layers2D, const int nLayer
 
 
 
-UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz)
+UNSTRUCTMESH MESHTOOLS::mesh2Dto3D(const UNSTRUCTMESH mesh2D, const double dz, const int kmax,
+    const int interp, const double par1, const double par2)
 {
+
+  // Generated a 3D mesh from a 2D meshes which is simply a block with a constant
+  // height of dz.
+
+  //Final mesh:
   UNSTRUCTMESH mesh3D;
 
-  for (int i=0; i<mesh2D.nodes.size(); i++)
-    mesh3D.nodes.push_back(mesh2D.nodes[i]);
-  for (int i=0; i<mesh2D.nodes.size(); i++)
-    mesh3D.push_back_node(mesh2D.nodes[i].pt+POINT(0.0,0.0,dz));
+  //****************************************************************************
+  //Initializing array and important variables
+  // Copying the 2D mesh and the nodes that construct them
+  // Copying the elements
+  deque<int> elem_v_2D, elem_i_2D;
+  elem_v_2D = mesh2D.elem_v;
+  elem_i_2D = mesh2D.elem_i;
+  // Copying the faces
+  deque<FACE> face_2D;
+  face_2D = mesh2D.faces;
 
-  mesh3D.elem_i.push_back(0);
 
-  for (int i=1; i<mesh2D.elem_i.size(); i++)
+  //Node count: all nodes and internal nodes
+  int nvert =     (int)mesh2D.nodes.size();
+  int nno_i =     (int)mesh2D.nno_i;
+  int nno_bc =    nvert-nno_i;
+  //Element count: all elements and internal elements
+  int nelem =     (int)elem_i_2D.size()-1;
+  int nel_i =     (int)mesh2D.nel_i;
+  int nel_bc =    nelem-nel_i;
+  //Face count: all faces, internal faces, and faces with only internal nodes.
+  int nfa =       (int)face_2D.size();
+  int nfa_i=      (int)mesh2D.nfa_i;
+  int nfa_nno_i=  (int)mesh2D.nfa_nno_i;
+
+  //****************************************************************
+  //      3D NODES
+  // 1. Internal nodes
+  //    1.1 Internal nodes of internal layers
+  // 2. Boundary nodes 
+  //    2.1 Internal of bottom/top layer
+  //    2.2 Boundary of internal layers,
+  //    2.3 Boundary of bottom/top layers,
+  // They are divided like this to make the face generation easier...
+  //
+  // // Nodes array arrangement:
+  // [0....................mesh3D.nno_i|........................................................................................................mesh3D.nvert]
+  // [ internal nodes of internal layer| internal nodes of bottom and top layers, boundary nodes of internal layers, boundary nodes of bottom and top layers]
+  // [0..................(kmax-2)*nno_i|..............................kmax*nno_i, ...........(kmax-2)*nvert-2*nno_i,..............................kmax*nvert]
+
+
+  //---------------------------------
+  // Generating the point distribution
+
+  // Default is a linear distribution
+  double distr[kmax];       // Distribution along the z-direction
+  for (int k=0; k<kmax; k++)
+    distr[k] = (double)k/(double)(kmax-1);
+
+  // More complex distributions...
+  if (interp==1) // tanh
+    for (int k=0; k<kmax; k++)
+      distr[k] = stretchingTanh(distr[k], par1, par2);
+  else if (interp==2) // atanh
+    for (int k=0; k<kmax; k++)
+      distr[k] = stretchingAtanh(distr[k], par2, par1);
+  else if (interp==3) // first-last length
+    firstLastLengthDistr(par1/dz, par2/dz, kmax, distr);
+
+  //=============================================================
+  //-----------------------------------------
+  //    1. internal nodes 
+  //        1.1 internal nodes from internal layers
+  int kbt[2]= {0, kmax-1};  // k values for the bottom and top
+  if(kmax>2)
+    for (int k=1; k<kmax-1; k++)
+      for (int i=0; i<nno_i; i++)
+      {
+        NODE tmp = mesh2D.nodes[i];
+        tmp.pt += POINT(0.0,0.0,distr[k]*dz);
+        mesh3D.nodes.push_back(tmp);
+      }
+
+  mesh3D.nno_i= mesh3D.nodes.size();
+  double diff = fabs((double)(mesh3D.nno_i - (kmax-2)*nno_i));
+//  // checking if nno_i is correct
+  if((int)mesh3D.nodes.size() != ((kmax-2)*nno_i))
   {
-    int startJ = mesh2D.elem_i[i-1];
-    int endJ = mesh2D.elem_i[i];
-    for (int j=startJ; j<endJ; j++)
-      mesh3D.elem_v.push_back(mesh2D.elem_v[j]);
-    for (int j=startJ; j<endJ; j++)
-      mesh3D.elem_v.push_back(mesh2D.elem_v[j]+mesh2D.nodes.size());
-
-    mesh3D.elem_i.push_back(2*(endJ-startJ) + mesh3D.elem_i[mesh3D.elem_i.size()-1]);
+    cout<<"Error, the number of internal nodes of the 3D mesh is incorrect, should be: "<< (kmax-2)*nno_i<<" and instead is "<< mesh3D.nno_i <<endl;
+    throw(-1);
   }
+
+  //=============================================================
+  //-----------------------------------------
+  //    2. boundary nodes of the 3D mesh
+  //         2.1 Internal bottom/top  layer
+  for (int j=0; j<2; j++)
+    for (int i=0; i<nno_i; i++)
+    {
+      NODE tmp = mesh2D.nodes[i];
+      tmp.pt += POINT(0.0,0.0,distr[kbt[j]]*dz);
+      mesh3D.nodes.push_back(tmp);
+    }
+  //-----------------------------------------
+  //         2.2 Boundary nodes of internal layers
+  if(kmax>2)
+    for (int k=1; k<kmax-1; k++)
+      for (int i=nno_i; i<nvert; i++)
+      {
+        NODE tmp = mesh2D.nodes[i];
+        tmp.pt += POINT(0.0,0.0,distr[k]*dz);
+        mesh3D.nodes.push_back(tmp);
+      }
+  //-----------------------------------------
+  //         2.3 Boundary nodes of bottom and top layers, from bottom to top
+  for (int j=0; j<2; j++)
+    for (int i=nno_i; i<nvert; i++)
+    {
+      NODE tmp = mesh2D.nodes[i];
+      tmp.pt += POINT(0.0,0.0,distr[kbt[j]]*dz);
+      mesh3D.nodes.push_back(tmp);
+    }
+
+
+  // checking if nvert is correct
+  if((int)mesh3D.nodes.size() != (kmax*nvert))
+  {
+    cout<<"Error, the total number of vertices of the 3D mesh is not correct"<< diff<<endl;
+    throw(-1);
+  }
+
+   //****************************************************************
+  // ELEMENTS OF THE 3D MESH,
+  // Number of elements is maintained, however now an element consists
+  // of 8 nodes.
+  // 1. Internal elements
+  //    1.1 Internal element from internal layers
+  // 2. Boundary elements 
+  //      2.1 Boundary elements, internal elements of bottom layer
+  //      2.2 Boundary elements, internal elements of top layer
+  //      2.2 Boundary elements, boundary elements of internal layer
+  //      2.4 Boundary elements, boundary elements of bottom layer
+  //      2.5 Boundary elements, boundary elements of top layer
+  // // Elements array arrangement:
+  // [0....................mesh3D.nel_i|........................................................................................................mesh3D.nvert]
+  // [ internal elems of internal layer| internal elems of bottom and top layers, boundary elems of internal layers, boundary elems of bottom and top layers]
+  // [0..................(kmax-3)*nel_i|..........................(kmax-1)*nel_i, ...........(kmax-3)*nelem-2*nel_i,..........................(kmax-1)*nelem]
+
+
+  int el=0;        //element count
+  mesh3D.elem_i.push_back(el);
+  //=============================================================
+  //-------------------
+  // 1. Internal elements of internal layers
+  if(kmax>3)
+    for (int k=0; k<kmax-3; k++)
+      for (int c=0; c<nel_i; c++)
+      {
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_bc  +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_i);
+
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_bc +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_i);
+
+
+        el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+        mesh3D.elem_i.push_back(el);
+      }
+  mesh3D.nel_i= mesh3D.elem_i.size()-1;
+
+  // checking if nel_i is correct
+  if(kmax>3)
+  {
+    if((int)(mesh3D.elem_i.size()-1) != ((kmax-3)*nel_i))
+    {
+      cout<<"Error, the number of internal elements of the 3D mesh is incorrect, should be: "<< (kmax-3)*nel_i<<" and instead is "<< mesh3D.nel_i <<endl;
+      throw(-1);
+    }
+  }
+  else
+  {
+    if((int)(mesh3D.elem_i.size()-1) != ((int)0))
+    {
+      cout<<"Error, the number of internal elements of the 3D mesh is incorrect, should be: "<< (kmax-3)*nel_i<<" and instead is "<< mesh3D.nel_i <<endl;
+      throw(-1);
+    }
+  }
+
+  //=============================================================
+  // 2 Boundary elements
+  //-------------------
+  // 2.1 Boundary elements, internal elements of bottom layer
+  for (int c=0; c<nel_i; c++)
+  {
+    for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+      if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]   +(kmax-2)  *nno_bc  +(kmax-1)*nno_i);
+      else                    mesh3D.elem_v.push_back(elem_v_2D[i]   +(kmax-2)  *nno_i);
+
+    if(kmax>2)
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]);
+    else
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_i);
+
+    el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+    mesh3D.elem_i.push_back(el);
+  }
+
+  //-------------------
+  // 2.2 Boundary elements, internal elements of top layer
+  if(kmax>2)
+    for (int c=0; c<nel_i; c++)
+    {
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_i);
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_i);
+
+      el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+      mesh3D.elem_i.push_back(el);
+    }
+
+
+  //-------------------
+  // 2.3 Boundary elements of internal layers
+  if(kmax>3)
+    for (int k=0; k<kmax-3; k++)
+      for (int c=nel_i; c<nelem; c++)
+      {
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_bc +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_i);
+
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_bc +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_i);
+
+
+        el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+        mesh3D.elem_i.push_back(el);
+      }
+
+  //-------------------
+  // 2.4 Boundary elements, boundary elements  Boundary elements of bottom layer
+  for (int c=nel_i; c<nelem; c++)
+  {
+    for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+      if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-2)  *nno_bc  +(kmax-1)*nno_i);
+      else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-2)  *nno_i);
+
+    if(kmax>2)
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]);
+    else
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_i);
+
+
+    el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+    mesh3D.elem_i.push_back(el);
+  }
+
+  //-------------------
+  // 2.5 Boundary elements, boundary elements of inner layer
+  if(kmax>2)
+    for (int c=nel_i; c<nelem; c++)
+    {
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_i);
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_i);
+
+      el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+      mesh3D.elem_i.push_back(el);
+    }
+
+  // checking if number of elements is correct
+  if(kmax>2)
+    if((int)mesh3D.elem_i.size()-1- (kmax-1)*nelem != 0)
+    {
+      cout<<"Error, the total number of elements of the 3D mesh is not correct"<<endl;
+      throw(-1);
+    }
+    else
+      cout<<"Elements of the 3D mesh is correct"<<endl;
+  else
+    if((int)mesh3D.elem_i.size()-1- nelem != 0)
+    {
+      cout<<"Error, the total number of elements of the 3D mesh is not correct"<<endl; throw(-1);
+    }
+    else
+      cout<<"Elements of the 3D mesh is correct"<<endl;
+
+  //****************************************************************
+  // FACES OF THE 3D MESH
+  // 1. Internal faces
+  //              1.1 Faces from internal elements of internal layers (parallel)
+  //              1.2 Faces from itnernal faces of internal layers (perpendicular)
+  // 2. Internal faces with boundary nodes
+  //              2.1 Internal faces with boundary points from internal layers (parallel)
+  //              2.2 Internal faces with boundary points from bottom layer (perpendicular)
+  //              2.3 Internal faces with boundary points from top layer (perpendicular)
+  // 3 Boundary faces 
+  //              3.1 Boundary faces from internal layers (perpendicular), side surface
+  //              3.2 Boundary faces from the bottom layer (parallel), bottom surface
+  //              3.3 Boundary faces from the top layer (parallel), top surface
+  //              3.4 Boundary faces from the bottom layer (perpendicular), side surface
+  //              3.5 Boundary faces from the top layer (perpendicular), side surface
+  //
+  //  NOTE:     - Faces parallel to the layer: "_x"   - Faces perpendicular to the layer: "_y"
+
+
+  //-----------------------------------------
+  // 1. Internal faces with internal nodes
+  
+  if(kmax>2)
+  {
+  // 1.1 Faces from internal elements of the internal layers
+    for (int k=0; k<kmax-2; k++)
+      for(int i=0; i<nel_i; i++)
+      {
+        // Faces parallel to the original 2D mesh
+        FACE tmpface_x;
+
+        //Giving the nodes
+        for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+          if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+k *nno_bc +(kmax-1)*nno_i);
+          else                    tmpface_x.node.push_back(elem_v_2D[j]+k *nno_i);
+
+        //Giving the elements
+        tmpface_x.elem_1=   i+1 + (k)     *nel_i;
+        tmpface_x.elem_2=   i+1 + (k-1)   *nel_i;
+        if(k==0)
+          tmpface_x.elem_2= i+1 + (kmax-3)*nel_i ;
+        if(k==kmax-3)
+          tmpface_x.elem_1= i+1 + (kmax-2)*nel_i;
+
+        //Giving the name
+        strcpy (tmpface_x.name,"fluid");     // named fluid by default....
+
+        //Plugging face in mesh
+        mesh3D.faces.push_back(tmpface_x);
+      }
+  // 1.2 Faces from internal faces of the internal layers
+    if(kmax>3)
+      for (int k=0; k<kmax-3; k++)
+        for(int i=0; i<nfa_nno_i; i++) //nfa_nno_i //nfa_i
+        {
+          //Face perpendicular to the original 2D mesh
+          FACE tmpface_y;
+          //Giving the nodes
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *nno_i);
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *nno_i);
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_i));
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_i));
+
+          //Giving the elements
+          if(face_2D[i].elem_1 >nel_i)
+            tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_bc + (kmax-2)*nel_i;
+          else
+            tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_i;
+
+          if(face_2D[i].elem_2 >nel_i)
+            tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_bc + (kmax-2)*nel_i;
+          else
+            tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_i;
+
+          //Giving the name of the face as the one in the original 2D mesh
+          strcpy (tmpface_y.name,face_2D[i].name);
+
+          //Plugging face in mesh
+          mesh3D.faces.push_back(tmpface_y);
+
+        }
+  }
+  mesh3D.nfa_nno_i= mesh3D.faces.size();
+
+  //-----------------------------------------
+  // 2. Internal faces with boundary and internal nodes
+  // 2.1 Internal faces with boundary nodes of the internal layers
+  if(kmax>2)
+  {
+    for (int k=0; k<kmax-2; k++)
+      for(int i=nel_i; i<nelem; i++)
+      {
+        // Faces parallel to the original 2D mesh
+        FACE tmpface_x;
+
+        //Giving the nodes
+        for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+          if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+k *nno_bc +(kmax-1)*nno_i);
+          else                    tmpface_x.node.push_back(elem_v_2D[j]+k *nno_i);
+
+        //Giving the elements
+        tmpface_x.elem_1=   i+1 +  k      *nel_bc +(kmax-2)*nel_i;
+        tmpface_x.elem_2=   i+1 + (k-1)   *nel_bc +(kmax-2)*nel_i;
+        if(k==0)
+          tmpface_x.elem_2= i+1 + (kmax-3)*nel_bc + (kmax-2)*nel_i;
+        if(k==kmax-3)
+          tmpface_x.elem_1= i+1 + (kmax-2)*nel_bc + (kmax-2)*nel_i;
+
+        //Giving the name
+        strcpy (tmpface_x.name,"fluid");     // named fluid by default....
+
+        //Plugging face in mesh
+        mesh3D.faces.push_back(tmpface_x);
+      }
+    if(kmax>3)
+      for (int k=0; k<kmax-3; k++)
+        for(int i=nfa_nno_i; i<nfa_i; i++)
+        {
+          //Face perpendicular to the original 2D mesh
+          FACE tmpface_y;
+          //Giving the nodes
+          if(face_2D[i].node[0]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_i));
+
+          if(face_2D[i].node[1]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_i));
+
+          if(face_2D[i].node[1]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_i));
+
+          if(face_2D[i].node[0]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_i));
+
+
+
+          //Giving the elements
+          if(face_2D[i].elem_1 > nel_i)
+              tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_bc + (kmax-2)*nel_i;
+          else
+              tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_i;
+        
+          if(face_2D[i].elem_2 > nel_i)
+              tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_bc + (kmax-2)*nel_i;
+          else
+              tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_i;
+
+          //Giving the name of the face as the one in the original 2D mesh
+          strcpy (tmpface_y.name,face_2D[i].name);
+
+          //Plugging face in mesh
+          mesh3D.faces.push_back(tmpface_y);
+
+        }
+  }
+  //-----------------------------------------
+  // 2.2 Internal faces with boundary nodes of the bottom layer
+  for(int i=0; i<nfa_i; i++) //nfa_nno_i //nfa_i
+  {
+    FACE tmpface_y;
+    //Giving the nodes
+    if(face_2D[i].node[0]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_i);
+
+    if(face_2D[i].node[1]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_i);
+
+    if(kmax>2)
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]);
+    }
+    else
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+    }
+
+
+    //Giving the elements
+    if(kmax>2)
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_i;
+      if(face_2D[i].elem_2>nel_i)        tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-3)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-3)*nel_i;
+    }
+    else
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+      if(face_2D[i].elem_2>nel_i)        tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_i;
+    }
+
+    //Giving the name of the face as the one in the original 2D mesh
+    strcpy (tmpface_y.name,face_2D[i].name);
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_y);
+
+  }
+  //-----------------------------------------
+  // 2.3 Internal faces with boundary nodes of the top layer
+  if(kmax>2)
+    for(int i=0; i<nfa_i; i++)
+    {
+      FACE tmpface_y;
+      //Giving the nodes
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_i);
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_i);
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+
+
+      //Giving the elements
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+      if(face_2D[i].elem_2>nel_i)        tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_i;
+
+
+
+      //Giving the name of the face as the one in the original 2D mesh
+      strcpy (tmpface_y.name,face_2D[i].name);
+
+      //Plugging face in imesh
+      mesh3D.faces.push_back(tmpface_y);
+
+    }
+
+  mesh3D.nfa_i= mesh3D.faces.size();
+
+  //-----------------------------------------
+  // 3. Boundary faces 
+  // 3.1 Boundary faces of the internal layers
+  if(kmax>3)
+    for (int k=0; k<kmax-3; k++)
+      for(int i=nfa_i; i<nfa; i++)
+      {
+        //Face perpendicular to the original 2D mesh
+        FACE tmpface_y;
+        //Giving the nodes
+        if(face_2D[i].node[0]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_i));
+
+        if(face_2D[i].node[1]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_i));
+
+        if(face_2D[i].node[1]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_i));
+
+        if(face_2D[i].node[0]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_i));
+
+
+
+        //Giving the elements
+        tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_bc + (kmax-2)*nel_i;
+        if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+        else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;//tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_bc + (kmax-2)*nel_i;
+
+        //Giving the name of the face as the one in the original 2D mesh
+        strcpy (tmpface_y.name,face_2D[i].name);
+
+        //Plugging face in mesh
+        mesh3D.faces.push_back(tmpface_y);
+
+      }
+
+  // 3.2 Bottom faces
+  for(int i=0; i<nelem; i++)
+  {
+    // Faces parallel to the original 2D mesh
+    FACE tmpface_x;
+
+    //Giving the nodes
+    if(kmax>2)
+    {
+      for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+        if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+(kmax-2)*nno_bc+(kmax-1)*nno_i) ;
+        else                    tmpface_x.node.push_back(elem_v_2D[j]+(kmax-2)*nno_i);
+
+      //Giving the elements
+      if(i>=nel_i)              tmpface_x.elem_1= i+1 + (kmax-3)*nel_bc+(kmax-2)*nel_i  ;
+      else                      tmpface_x.elem_1= i+1 + (kmax-3)*nel_i;
+      tmpface_x.elem_2= 0;
+
+    }
+    else
+    {
+      for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+        if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+(kmax-1)*nno_i) ;
+        else                    tmpface_x.node.push_back(elem_v_2D[j]+(kmax-2)*nno_i);
+
+      //Giving the elements
+      if(i>=nel_i)              tmpface_x.elem_1= i+1 + (kmax-2)*nel_i  ;
+      else                      tmpface_x.elem_1= i+1 + (kmax-2)*nel_i;
+      tmpface_x.elem_2= 0;
+    }
+
+
+    //Giving the name
+    strcpy (tmpface_x.name,"bottom");     // named bottom by default....
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_x);
+  }
+
+  //-----------
+  // 3.3 Top faces
+  for(int i=0; i<nelem; i++)
+  {
+    // Faces parallel to the original 2D mesh
+    FACE tmpface_x;
+
+    //Giving the nodes
+    for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)
+      if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else                    tmpface_x.node.push_back(elem_v_2D[j]+(kmax-1)*nno_i);
+
+    //Giving the elements
+    if(i>=nel_i)             tmpface_x.elem_1= i+1 +(kmax-2)*nel_bc+ (kmax-2)*nel_i  ;
+    else                     tmpface_x.elem_1= i+1 +(kmax-2)*nel_i;
+    tmpface_x.elem_2= 0;
+
+
+    //Giving the name
+    strcpy (tmpface_x.name,"top");     // named top by default....
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_x);
+  }
+
+// 3.4 Boundary faces of the bottom layer (perpendicular)
+  for(int i=nfa_i; i<nfa;i++)
+  {
+    FACE tmpface_y;
+    //Giving the nodes
+    if(face_2D[i].node[0]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_i);
+
+    if(face_2D[i].node[1]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_i);
+
+    if(kmax>2)
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]);
+    }
+    else
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+    }
+
+
+    //Giving the elements
+    if(kmax>2)
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_i;
+
+      if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+      else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;
+    }
+    else
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+            
+      if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+      else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;
+    }
+
+    //Giving the name of the face as the one in the original 2D mesh
+    strcpy (tmpface_y.name,face_2D[i].name);
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_y);
+
+  }
+  //-----------------------------------------
+  // 3.5 Boundary faces of the top layer (perpendicular)
+  if(kmax>2)
+    for(int i=nfa_i; i<nfa; i++) //nfa_nno_i //nfa_i
+    {
+      FACE tmpface_y;
+      //Giving the nodes
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_i);
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_i);
+
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+
+
+      //Giving the elements
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+      
+
+      if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+      else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;
+    
+      //Giving the name of the face as the one in the original 2D mesh
+      strcpy (tmpface_y.name,face_2D[i].name);
+
+      //Plugging face in imesh
+      mesh3D.faces.push_back(tmpface_y);
+
+    }
+
+  face_2D.clear();
+  elem_i_2D.clear();
+  elem_v_2D.clear();
+
   return(mesh3D);
+
+
 }
 
-UNSTRUCTMESH MESHTOOLS::buildMesh3DNew(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme) //, const int startLayer, const string &interpScheme)   //GUSTAVO 15/06/16
+UNSTRUCTMESH MESHTOOLS::buildMesh3D(deque<UNSTRUCTMESH> &layers2D, const int kmax, const string &interpScheme, const string &bc_name_above, const string &bc_name_below, const double par1, const double par2, const int interp, const string &span_distribution)    //GUSTAVO 15/06/16
 {
-
-  /* Made by Gustavo J. Otero Date: 01-04-2016
-   * For this function generates a 3D mesh from two or more meshes (they do not need to be 2D_. That is why the input is a deque of meshes.
-   *
+  /* Made by Gustavo J. Otero Date: 29-09-2016
+   * Features of the function:
+   *  - This function generates a 3D mesh from two or more meshes (they do not need to be 2D). That is why the input is a deque of meshes.
+   *  - The distribution in the 3D direction (or span) can be done with tanh, atanh, first and last length.             (interp=  1 (tanh), 2 (atanh), 3 (first_lastLenght), else ctte distribution)
+   *  - If more than two meshes are used, the interpolation scheme can be change from LINE to SPLINE or BEZIER curve    (interpScheme= "LINE", "SPLINE", "BEZIER")
+   *  - It includes the generation of the faces, later use for the creating of the Fluent *msh file.
+   *      The names of the boundaries are updated for the 3D direction: "fluid", bc_name_above (top boundary), bc_name_below (bottom boundary),
+   *  - The 3D meshes is generate with the following order:
+   *      Nodes:    1. Internal nodes
+   *                2. Boundary nodes
+   *      Elements: 1. Internal elements
+   *                2. Boundary elements
+   *      Faces:    1. Internal faces with only internal nodes
+   *                2. Internal faces with boundary nodes nodes
+   *                3. Boundary faces
    *
    *
    */
-  UNSTRUCTMESH mesh3D;
-  deque<int> elem_v_2D, elem_i_2D;
 
+  //Final mesh:
+  UNSTRUCTMESH mesh3D;
+
+  //****************************************************************************
+  //Checking that the number of vertices are constant along all the meshes!
   for(int i=0; i<layers2D.size(); i++)
   {
-    cout<<"Number of vertices in original mesh layer "<< i << ": "<< layers2D[0].nodes.size() <<endl;
-    if((i>0) && i<layers2D.size()-1)
-      if(layers2D[i-1].nodes.size()- layers2D[i].nodes.size() != 0)
+    cout<<"Number of vertices in original mesh layer "    << i << ": "<< layers2D[i].nodes.size() <<endl;
+    cout<<"Number of elements in original mesh layer "    << i << ": "<< layers2D[i].elem_i.size()-1 <<endl;
+    cout<<"Number of faces in original mesh layer "       << i << ": "<< layers2D[i].faces.size() <<endl;
+
+    if(i>0)
+      if(layers2D[0].nodes.size()- layers2D[i].nodes.size() != 0)
       {
         cout<<"Error, the number of vertices of each mesh is not the same"<<endl;
         throw(-1);
       }
   }
 
-//  cout<<"Number of vertices in original mesh layer 1  "<< layers2D[0].nodes.size() <<endl;
-//  cout<<"Number of vertices in original mesh layer 2  "<< layers2D[1].nodes.size() <<endl;
-//  if(layers2D[0].nodes.size()- layers2D[1].nodes.size() != 0)
-//  {
-//    cout<<"Error, the number of vertices of each mesh is not the same"<<endl;
-//    throw(-1);
-//  }
-
-
-  deque< deque<POINT> > points2D;
-
+  //****************************************************************************
+  //Initializing array and important variables
   // Copying the 2D mesh and the nodes that construct them
+  deque< deque<POINT> > points2D;
   for (int i=0; i<layers2D.size();i++)
   {
     deque<POINT> tmpPts;
     for (int j=0;j<layers2D[0].nodes.size();j++)
       tmpPts.push_back(layers2D[i].nodes[j].pt);
+
     points2D.push_back(tmpPts);
   }
-
+  // Copying the elements and faces
+  deque<int> elem_v_2D, elem_i_2D;
   elem_v_2D = layers2D[0].elem_v;
   elem_i_2D = layers2D[0].elem_i;
+  deque<FACE> face_2D;
+  face_2D = layers2D[0].faces;
+
+  //Node count: all nodes and internal nodes
+  int nvert =     (int)layers2D[0].nodes.size();
+  int nno_i =     (int)layers2D[0].nno_i;
+  int nno_bc =    nvert-nno_i;
+  //Element count: all elements and internal elements
+  int nelem =     (int)elem_i_2D.size()-1;
+  int nel_i =     (int)layers2D[0].nel_i;
+  int nel_bc =    nelem-nel_i;
+  //Face count: all faces, internal faces, and faces with only internal nodes.
+  int nfa =       (int)layers2D[0].faces.size();
+  int nfa_i=      (int)layers2D[0].nfa_i;
+  int nfa_nno_i=  (int)layers2D[0].nfa_nno_i;         //nfa_i>nfa_nno_i
 
 
 
-  int nvert = (int)points2D[0].size();
-  int nelem = (int)elem_i_2D.size()-1;
+  //Distribution Along the span
+  // inter=1 uses a tanh, inter=2 uses a atanh and inter=3 uses a first and last lenght distribution
 
-  // NODES OF THE 3D MESH
+  // Default is a linear distribution
+  double distr[kmax];       // Distribution along the z-direction
+  for (int k=0; k<kmax; k++)
+    distr[k] = (double)k/(double)(kmax-1);
 
-  // Cpying the nodes in the other direction, in this case z!
+  // More complex distributions...
+  if (interp==1) // tanh
+    for (int k=0; k<kmax; k++)
+      distr[k] = stretchingTanh(distr[k], par1, par2);
+  else if (interp==2) // atanh
+    for (int k=0; k<kmax; k++)
+      distr[k] = stretchingAtanh(distr[k], par2, par1);
+//  else if (interp==3) // first-last length
+//    firstLastLengthDistr(par1/dz, par2/dz, kmax, distr);
+
+
+  //****************************************************************
+  //        NODES OF THE 3D MESH
+  //--------------------------
+  // Generating the nodes along the interpolation scheme
   deque< deque<POINT> > nodes3D;    //number of nodes in the 2D mesh x number of layers in z
 
-//  string interpScheme="SPLINE";
 
   for (int i=0; i<nvert; i++)
   {
@@ -1552,35 +2417,27 @@ UNSTRUCTMESH MESHTOOLS::buildMesh3DNew(deque<UNSTRUCTMESH> &layers2D, const int 
     if (interpScheme == "LINE")
     {
       LINE span(splinepts);
-      // define distribution in the spanwise direction
-      double distr[nLayers];
-      for (int i=0; i<nLayers; i++)
-        distr[i] = (double)i/(double)(nLayers-1);
-//      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-      for (int l=0; l<nLayers; l++)
-        nodes_i.push_back(span.calcPoint(distr[l]));
+      // define distribution in the spanwise direction, first and last lenght
+      if (interp==3) firstLastLengthDistr(par1/span.length, par2/span.length, kmax, distr);
+      for (int k=0; k<kmax; k++)
+        nodes_i.push_back(span.calcPoint(distr[k]));
     }
     else if (interpScheme == "SPLINE")
     {
       SPLINE span(splinepts);
-      // define distribution in the spanwise direction
-      double distr[nLayers];
-      for (int i=0; i<nLayers; i++)
-        distr[i] = (double)i/(double)(nLayers-1);
-//      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-      for (int l=0; l<nLayers; l++)
-        nodes_i.push_back(span.calcPoint(distr[l]));
+      // define distribution in the spanwise direction, first and last lenght
+      if (interp==3) firstLastLengthDistr(par1/span.length, par2/span.length,  kmax,   distr);
+
+      for (int k=0; k<kmax; k++)
+        nodes_i.push_back(span.calcPoint(distr[k]));
     }
     else if (interpScheme == "BEZIER")
     {
       BEZIER span(splinepts);
-      // define distribution in the spanwise direction
-      double distr[nLayers];
-      for (int i=0; i<nLayers; i++)
-        distr[i] = (double)i/(double)(nLayers-1);
-//      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-      for (int l=0; l<nLayers; l++)
-        nodes_i.push_back(span.calcPoint(distr[l]));
+      // define distribution in the spanwise direction, first and last lenght
+      if (interp==3) firstLastLengthDistr(par1/span.length, par2/span.length, kmax, distr);
+      for (int k=0; k<kmax; k++)
+        nodes_i.push_back(span.calcPoint(distr[k]));
     }
     else
     {
@@ -1590,924 +2447,768 @@ UNSTRUCTMESH MESHTOOLS::buildMesh3DNew(deque<UNSTRUCTMESH> &layers2D, const int 
 
     nodes3D.push_back(nodes_i);
 
-
-
-
-
-
-
-
-    /*
-    deque<POINT> nodes_i;
-
-    deque<POINT> splinepts;
-    for (int s=0; s<points2D.size(); s++)
-      splinepts.push_back(points2D[s][i]);
-
-    LINE span(splinepts);
-    // define distribution in the spanwise direction
-    double distr[nLayers];
-    //firstLastLengthDistr(dz/nLayers, dz/nLayers, nLayers, distr);      //First lenght and last lenght can be used for boundary layer in the spanwise direction
-
-    //-------------------------------------------------------
-    double z1=layers2D[1].nodes[i].pt.z;
-    double z0=layers2D[0].nodes[i].pt.z;
-    double span_distance=z1-z0; //layers2D[i].nodes[j].pt
-
-
-    for (int i=0; i<nLayers; i++)
-      distr[i] = (double)i/(double)(nLayers-1);
-    //firstLastLengthDistr(span_distance/nLayers, span_distance/nLayers, nLayers, distr);
-    //-------------------------------------------------------
-
-    for (int l=0; l<nLayers; l++)
-      nodes_i.push_back(span.calcPoint(distr[l]));
-
-    //      if (interpScheme == "LINE")
-    //          {
-    //            LINE span(splinepts);
-    //            // define distribution in the spanwise direction
-    //            double distr[nLayers];
-    //            firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-    //            for (int l=0; l<nLayers; l++)
-    //              nodes_i.push_back(span.calcPoint(distr[l]));
-    //          }
-    //          else if (interpScheme == "SPLINE")
-    //          {
-    //            SPLINE span(splinepts);
-    //            // define distribution in the spanwise direction
-    //            double distr[nLayers];
-    //            firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-    //            for (int l=0; l<nLayers; l++)
-    //              nodes_i.push_back(span.calcPoint(distr[l]));
-    //          }
-    //          else if (interpScheme == "BEZIER")
-    //          {
-    //            BEZIER span(splinepts);
-    //            // define distribution in the spanwise direction
-    //            double distr[nLayers];
-    //            firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-    //            for (int l=0; l<nLayers; l++)
-    //              nodes_i.push_back(span.calcPoint(distr[l]));
-    //          }
-    //          else
-    //          {
-    //            cout << "error: interpolation " << interpScheme << " not implemented" << endl;
-    //            throw(-10);
-    //          }
-    nodes3D.push_back(nodes_i);
-    */
   }
-  for (int l=0; l<nLayers; l++)
-    for (int i=0; i<nvert; i++)
+
+  //Storing the distribution:
+  if(strcmp (span_distribution.c_str(), "no") != 0)
+  {
+    char filename[32];
+    sprintf(filename, "SpanDistribution_%s.dat", span_distribution.c_str());
+
+    FILE *fp_ = fopen(filename, "wt");
+    for (int k=0; k<kmax; k++)
+      fprintf(fp_,"%f\t\n", distr[k]);
+    fclose(fp_);
+  }
+
+  //--------------------------------------------------------------------------------
+  //  Plugging the nodes to the new 3D mesh in order
+  // 1. Internal nodes: consists only of the internal nodes of the internal layers
+  // 2. Boundary nodes
+  //              2.1 Boundary nodes of the internal layers
+  //              2.2 All nodes of the bottom layers
+  //              2.3 All nodes of the top layers
+
+  //-----------------------------------------
+  //    1. internal nodes of the internal layers
+  if(kmax>2)
+    for (int k=1; k<kmax-1; k++)
+      for (int i=0; i<nno_i; i++)
+      {
+        NODE tmp;
+        tmp.pt = nodes3D[i][k];
+        mesh3D.nodes.push_back(tmp);
+      }
+
+  mesh3D.nno_i=mesh3D.nodes.size();
+
+  //-----------------------------------------
+  //    2.1 internal nodes of the bottom/top layer
+  for (int i=0; i<nno_i; i++)
+  {
+    NODE tmp;
+    tmp.pt = nodes3D[i][0];
+    mesh3D.nodes.push_back(tmp);
+  }
+ for (int i=0; i<nno_i; i++)
+  {
+    NODE tmp;
+    tmp.pt = nodes3D[i][kmax-1];
+    mesh3D.nodes.push_back(tmp);
+  }
+
+  //-----------------------------------------
+  //    2.2 boundary nodes of the internal layer
+  if(kmax>2)
+    for (int k=1; k<kmax-1; k++)
+      for (int i=nno_i; i<nvert; i++)
+      {
+        NODE tmp;
+        tmp.pt = nodes3D[i][k];
+        mesh3D.nodes.push_back(tmp);
+      }
+
+  //-----------------------------------------
+  //    2.3 boundary nodes of the bottom/top layer
+  for (int i=nno_i; i<nvert; i++)
+  {
+    NODE tmp;
+    tmp.pt = nodes3D[i][0];
+    mesh3D.nodes.push_back(tmp);
+  }
+ for (int i=nno_i; i<nvert; i++)
+  {
+    NODE tmp;
+    tmp.pt = nodes3D[i][kmax-1];
+    mesh3D.nodes.push_back(tmp);
+  }
+
+
+   //****************************************************************
+  // ELEMENTS OF THE 3D MESH,
+  // Number of elements is maintained, however now an element consists
+  // of 8 nodes.
+  // 1. Internal elements
+  //    1.1 Internal element from internal layers
+  // 2. Boundary elements 
+  //      2.1 Boundary elements, internal elements of bottom layer
+  //      2.2 Boundary elements, internal elements of top layer
+  //      2.2 Boundary elements, boundary elements of internal layer
+  //      2.4 Boundary elements, boundary elements of bottom layer
+  //      2.5 Boundary elements, boundary elements of top layer
+  // // Elements array arrangement:
+  // [0....................mesh3D.nel_i|........................................................................................................mesh3D.nvert]
+  // [ internal elems of internal layer| internal elems of bottom and top layers, boundary elems of internal layers, boundary elems of bottom and top layers]
+  // [0..................(kmax-3)*nel_i|..........................(kmax-1)*nel_i, ...........(kmax-3)*nelem-2*nel_i,..........................(kmax-1)*nelem]
+
+
+  int el=0;        //element count
+  mesh3D.elem_i.push_back(el);
+  //=============================================================
+  //-------------------
+  // 1. Internal elements of internal layers
+  if(kmax>3)
+    for (int k=0; k<kmax-3; k++)
+      for (int c=0; c<nel_i; c++)
+      {
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_bc  +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_i);
+
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_bc +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_i);
+
+
+        el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+        mesh3D.elem_i.push_back(el);
+      }
+  mesh3D.nel_i= mesh3D.elem_i.size()-1;
+
+  // checking if nel_i is correct
+  if(kmax>3)
+  {
+    if((int)(mesh3D.elem_i.size()-1) != ((kmax-3)*nel_i))
     {
-      NODE tmp;
-      tmp.pt = nodes3D[i][l];
-      mesh3D.nodes.push_back(tmp);
+      cout<<"Error, the number of internal elements of the 3D mesh is incorrect, should be: "<< (kmax-3)*nel_i<<" and instead is "<< mesh3D.nel_i <<endl;
+      throw(-1);
     }
-  //   mesh3D.nno_i = mesh3D.nodes.size() - nvert;
-
-
-
-  // ELEMENTS OF THE 3D MESH
-  int k=0;
-  mesh3D.elem_i.push_back(k);
-  for (int l=0; l<nLayers-1; l++)
-    for (int c=0; c<nelem; c++)
+  }
+  else
+  {;
+    if((int)(mesh3D.elem_i.size()-1) != ((int)0))
     {
-      deque<int> tmpElem;
-      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-        mesh3D.elem_v.push_back(elem_v_2D[i]+(l+1)*nvert);
-
-      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-        mesh3D.elem_v.push_back(elem_v_2D[i]+(l)*nvert);
-
-      k += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
-      mesh3D.elem_i.push_back(k);
+      cout<<"Error, the number of internal elements of the 3D mesh is incorrect, should be: "<< (kmax-3)*nel_i<<" and instead is "<< mesh3D.nel_i <<endl;
+      throw(-1);
     }
-  mesh3D.nel_i = mesh3D.elem_i.size() - 1 - nelem;
+  }
+
+  //=============================================================
+  // 2 Boundary elements
+  //-------------------
+  // 2.1 Boundary elements, internal elements of bottom layer
+  for (int c=0; c<nel_i; c++)
+  {
+    for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+      if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]   +(kmax-2)  *nno_bc  +(kmax-1)*nno_i);
+      else                    mesh3D.elem_v.push_back(elem_v_2D[i]   +(kmax-2)  *nno_i);
+
+    if(kmax>2)
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]);
+    else
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_i);
+
+    el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+    mesh3D.elem_i.push_back(el);
+  }
+
+  //-------------------
+  // 2.2 Boundary elements, internal elements of top layer
+  if(kmax>2)
+    for (int c=0; c<nel_i; c++)
+    {
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_i);
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_i);
+
+      el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+      mesh3D.elem_i.push_back(el);
+    }
+
+
+  //-------------------
+  // 2.3 Boundary elements of internal layers
+  if(kmax>3)
+    for (int k=0; k<kmax-3; k++)
+      for (int c=nel_i; c<nelem; c++)
+      {
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_bc +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k)  *nno_i);
+
+        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+          if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_bc +(kmax-1)*nno_i);
+          else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(k+1)*nno_i);
+
+
+        el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+        mesh3D.elem_i.push_back(el);
+      }
+
+  //-------------------
+  // 2.4 Boundary elements, boundary elements  Boundary elements of bottom layer
+  for (int c=nel_i; c<nelem; c++)
+  {
+    for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+      if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-2)  *nno_bc  +(kmax-1)*nno_i);
+      else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-2)  *nno_i);
+
+    if(kmax>2)
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]);
+    else
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i] +(kmax-1)  *nno_i);
+
+
+    el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+    mesh3D.elem_i.push_back(el);
+  }
+
+  //-------------------
+  // 2.5 Boundary elements, boundary elements  Boundary elements of op layer
+  if(kmax>2)
+    for (int c=nel_i; c<nelem; c++)
+    {
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-3)  *nno_i);
+
+      for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
+        if(elem_v_2D[i]>=nno_i) mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_bc  +(kmax-1)*nno_i);
+        else                    mesh3D.elem_v.push_back(elem_v_2D[i]+(kmax-1)  *nno_i);
+
+      el += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
+      mesh3D.elem_i.push_back(el);
+    }
+
+  // checking if number of elements is correct
+  if(kmax>2)
+    if((int)mesh3D.elem_i.size()-1- (kmax-1)*nelem != 0)
+    {
+      cout<<"Error, the total number of elements of the 3D mesh is not correct"<<endl;
+      throw(-1);
+    }
+    else
+      cout<<"Elements of the 3D mesh is correct"<<endl;
+  else
+    if((int)mesh3D.elem_i.size()-1- nelem != 0)
+    {
+      cout<<"Error, the total number of elements of the 3D mesh is not correct"<<endl; throw(-1);
+    }
+    else
+      cout<<"Elements of the 3D mesh is correct"<<endl;
+
+  //****************************************************************
+  // FACES OF THE 3D MESH
+  // 1. Internal faces
+  //              1.1 Faces from internal elements of internal layers (parallel)
+  //              1.2 Faces from itnernal faces of internal layers (perpendicular)
+  // 2. Internal faces with boundary nodes
+  //              2.1 Internal faces with boundary points from internal layers (parallel)
+  //              2.2 Internal faces with boundary points from bottom layer (perpendicular)
+  //              2.3 Internal faces with boundary points from top layer (perpendicular)
+  // 3 Boundary faces 
+  //              3.1 Boundary faces from internal layers (perpendicular), side surface
+  //              3.2 Boundary faces from the bottom layer (parallel), bottom surface
+  //              3.3 Boundary faces from the top layer (parallel), top surface
+  //              3.4 Boundary faces from the bottom layer (perpendicular), side surface
+  //              3.5 Boundary faces from the top layer (perpendicular), side surface
+  //
+  //  NOTE:     - Faces parallel to the layer: "_x"   - Faces perpendicular to the layer: "_y"
+
+
+  //-----------------------------------------
+  // 1. Internal faces with internal nodes
+  
+  if(kmax>2)
+  {
+  // 1.1 Faces from internal elements of the internal layers
+    for (int k=0; k<kmax-2; k++)
+      for(int i=0; i<nel_i; i++)
+      {
+        // Faces parallel to the original 2D mesh
+        FACE tmpface_x;
+
+        //Giving the nodes
+        for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+          if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+k *nno_bc +(kmax-1)*nno_i);
+          else                    tmpface_x.node.push_back(elem_v_2D[j]+k *nno_i);
+
+        //Giving the elements
+        tmpface_x.elem_1=   i+1 + (k)     *nel_i;
+        tmpface_x.elem_2=   i+1 + (k-1)   *nel_i;
+        if(k==0)
+          tmpface_x.elem_2= i+1 + (kmax-3)*nel_i ;
+        if(k==kmax-3)
+          tmpface_x.elem_1= i+1 + (kmax-2)*nel_i;
+
+        //Giving the name
+        strcpy (tmpface_x.name,"fluid");     // named fluid by default....
+
+        //Plugging face in mesh
+        mesh3D.faces.push_back(tmpface_x);
+      }
+  // 1.2 Faces from internal faces of the internal layers
+    if(kmax>3)
+      for (int k=0; k<kmax-3; k++)
+        for(int i=0; i<nfa_nno_i; i++)
+        {
+          //Face perpendicular to the original 2D mesh
+          FACE tmpface_y;
+          //Giving the nodes
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *nno_i);
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *nno_i);
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_i));
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_i));
+
+          //Giving the elements
+          if(face_2D[i].elem_1 >nel_i)
+            tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_bc + (kmax-2)*nel_i;
+          else
+            tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_i;
+
+          if(face_2D[i].elem_2 >nel_i)
+            tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_bc + (kmax-2)*nel_i;
+          else
+            tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_i;
+
+          //Giving the name of the face as the one in the original 2D mesh
+          strcpy (tmpface_y.name,face_2D[i].name);
+
+          //Plugging face in mesh
+          mesh3D.faces.push_back(tmpface_y);
+
+        }
+  }
+  mesh3D.nfa_nno_i= mesh3D.faces.size();
+
+  //-----------------------------------------
+  // 2. Internal faces with boundary and internal nodes
+  // 2.1 Internal faces with boundary nodes of the internal layers
+  if(kmax>2)
+  {
+    for (int k=0; k<kmax-2; k++)
+      for(int i=nel_i; i<nelem; i++)
+      {
+        // Faces parallel to the original 2D mesh
+        FACE tmpface_x;
+
+        //Giving the nodes
+        for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+          if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+k *nno_bc +(kmax-1)*nno_i);
+          else                    tmpface_x.node.push_back(elem_v_2D[j]+k *nno_i);
+
+        //Giving the elements
+        tmpface_x.elem_1=   i+1 +  k      *nel_bc +(kmax-2)*nel_i;
+        tmpface_x.elem_2=   i+1 + (k-1)   *nel_bc +(kmax-2)*nel_i;
+        if(k==0)
+          tmpface_x.elem_2= i+1 + (kmax-3)*nel_bc + (kmax-2)*nel_i;
+        if(k==kmax-3)
+          tmpface_x.elem_1= i+1 + (kmax-2)*nel_bc + (kmax-2)*nel_i;
+
+        //Giving the name
+        strcpy (tmpface_x.name,"fluid");     // named fluid by default....
+
+        //Plugging face in mesh
+        mesh3D.faces.push_back(tmpface_x);
+      }
+    if(kmax>3)
+      for (int k=0; k<kmax-3; k++)
+        for(int i=nfa_nno_i; i<nfa_i; i++)
+        {
+          //Face perpendicular to the original 2D mesh
+          FACE tmpface_y;
+          //Giving the nodes
+          if(face_2D[i].node[0]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_i));
+
+          if(face_2D[i].node[1]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_i));
+
+          if(face_2D[i].node[1]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_i));
+
+          if(face_2D[i].node[0]>=nno_i)
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+          else
+            tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_i));
+
+
+
+          //Giving the elements
+          if(face_2D[i].elem_1 > nel_i)
+              tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_bc + (kmax-2)*nel_i;
+          else
+              tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_i;
+        
+          if(face_2D[i].elem_2 > nel_i)
+              tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_bc + (kmax-2)*nel_i;
+          else
+              tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_i;
+
+          //Giving the name of the face as the one in the original 2D mesh
+          strcpy (tmpface_y.name,face_2D[i].name);
+
+          //Plugging face in mesh
+          mesh3D.faces.push_back(tmpface_y);
+
+        }
+  }
+  //-----------------------------------------
+  // 2.2 Internal faces with boundary nodes of the bottom layer
+  for(int i=0; i<nfa_i; i++)
+  {
+    FACE tmpface_y;
+    //Giving the nodes
+    if(face_2D[i].node[0]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_i);
+
+    if(face_2D[i].node[1]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_i);
+
+    if(kmax>2)
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]);
+    }
+    else
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+    }
+
+
+    //Giving the elements
+    if(kmax>2)
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_i;
+      if(face_2D[i].elem_2>nel_i)        tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-3)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-3)*nel_i;
+    }
+    else
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+      if(face_2D[i].elem_2>nel_i)        tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_i;
+    }
+
+    //Giving the name of the face as the one in the original 2D mesh
+    strcpy (tmpface_y.name,face_2D[i].name);
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_y);
+
+  }
+  //-----------------------------------------
+  // 2.3 Internal faces with boundary nodes of the top layer
+  if(kmax>2)
+    for(int i=0; i<nfa_i; i++)
+    {
+      FACE tmpface_y;
+      //Giving the nodes
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_i);
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_i);
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+
+
+      //Giving the elements
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+      if(face_2D[i].elem_2>nel_i)        tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_bc+(kmax-2)*nel_i;
+      else                               tmpface_y.elem_2= face_2D[i].elem_2 + (kmax-2)*nel_i;
+
+
+
+      //Giving the name of the face as the one in the original 2D mesh
+      strcpy (tmpface_y.name,face_2D[i].name);
+
+      //Plugging face in mesh
+      mesh3D.faces.push_back(tmpface_y);
+
+    }
+
+  mesh3D.nfa_i= mesh3D.faces.size();
+
+  //-----------------------------------------
+  // 3. Boundary faces 
+  // 3.1 Boundary faces of the internal layers
+  if(kmax>3)
+    for (int k=0; k<kmax-3; k++)
+      for(int i=nfa_i; i<nfa; i++) //nfa_nno_i //nfa_i
+      {
+        //Face perpendicular to the original 2D mesh
+        FACE tmpface_y;
+        //Giving the nodes
+        if(face_2D[i].node[0]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k)  *(nno_i));
+
+        if(face_2D[i].node[1]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k)  *(nno_i));
+
+        if(face_2D[i].node[1]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[1]+(k+1)*(nno_i));
+
+        if(face_2D[i].node[0]>=nno_i)
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_bc)+(kmax-1)*nno_i);
+        else
+          tmpface_y.node.push_back(face_2D[i].node[0]+(k+1)*(nno_i));
+
+
+
+        //Giving the elements
+        tmpface_y.elem_1= face_2D[i].elem_1 + k*nel_bc + (kmax-2)*nel_i;
+        if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+        else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;//tmpface_y.elem_2= face_2D[i].elem_2 + k*nel_bc + (kmax-2)*nel_i;
+
+        //Giving the name of the face as the one in the original 2D mesh
+        strcpy (tmpface_y.name,face_2D[i].name);
+
+        //Plugging face in mesh
+        mesh3D.faces.push_back(tmpface_y);
+
+      }
+
+  // 3.2 Bottom faces
+  for(int i=0; i<nelem; i++)
+  {
+    // Faces parallel to the original 2D mesh
+    FACE tmpface_x;
+
+    //Giving the nodes
+    if(kmax>2)
+    {
+      for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+        if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+(kmax-2)*nno_bc+(kmax-1)*nno_i) ; // +nno_i);
+        else                    tmpface_x.node.push_back(elem_v_2D[j]+(kmax-2)*nno_i);
+
+      //Giving the elements
+      if(i>=nel_i)              tmpface_x.elem_1= i+1 + (kmax-3)*nel_bc+(kmax-2)*nel_i  ;
+      else                      tmpface_x.elem_1= i+1 + (kmax-3)*nel_i;
+      tmpface_x.elem_2= 0;
+
+    }
+    else
+    {
+      for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
+        if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+(kmax-1)*nno_i) ; // +nno_i);
+        else                    tmpface_x.node.push_back(elem_v_2D[j]+(kmax-2)*nno_i);
+
+      //Giving the elements
+      if(i>=nel_i)              tmpface_x.elem_1= i+1 + (kmax-2)*nel_i  ;
+      else                      tmpface_x.elem_1= i+1 + (kmax-2)*nel_i;
+      tmpface_x.elem_2= 0;
+    }
+
+
+    //Giving the name
+    strcpy (tmpface_x.name,bc_name_below.c_str());     // named bottom by default.... bc_name_below
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_x);
+  }
+
+  //-----------
+  // 3.3 Top faces
+  for(int i=0; i<nelem; i++)
+  {
+    // Faces parallel to the original 2D mesh
+    FACE tmpface_x;
+
+    //Giving the nodes
+    for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)
+      if(elem_v_2D[j]>=nno_i) tmpface_x.node.push_back(elem_v_2D[j]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else                    tmpface_x.node.push_back(elem_v_2D[j]+(kmax-1)*nno_i);
+
+    //Giving the elements
+    if(i>=nel_i)             tmpface_x.elem_1= i+1 +(kmax-2)*nel_bc+ (kmax-2)*nel_i  ;
+    else                     tmpface_x.elem_1= i+1 +(kmax-2)*nel_i;
+    tmpface_x.elem_2= 0;
+
+
+    //Giving the name
+    strcpy (tmpface_x.name,bc_name_above.c_str());     // named top by default....
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_x);
+  }
+
+// 3.4 Boundary faces of the bottom layer (perpendicular)
+  for(int i=nfa_i; i<nfa;i++) //nfa_nno_i //nfa_i
+  {
+    FACE tmpface_y;
+    //Giving the nodes
+    if(face_2D[i].node[0]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-2)*nno_i);
+
+    if(face_2D[i].node[1]>=nno_i)
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_bc +(kmax-1)*nno_i);
+    else
+      tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-2)*nno_i);
+
+    if(kmax>2)
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]);
+    }
+    else
+    {
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+    }
+
+
+    //Giving the elements
+    if(kmax>2)
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_bc+(kmax-2)*nel_i; //(kmax-1)*nel_i
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-3)*nel_i;
+
+      if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+      else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;
+    }
+    else
+    {
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i; //(kmax-1)*nel_i
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+            
+      if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+      else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;
+    }
+
+    //Giving the name of the face as the one in the original 2D mesh
+    strcpy (tmpface_y.name,face_2D[i].name);
+
+    //Plugging face in mesh
+    mesh3D.faces.push_back(tmpface_y);
+
+  }
+  //-----------------------------------------
+  // 3.5 Boundary faces of the top layer (perpendicular)
+  if(kmax>2)
+    for(int i=nfa_i; i<nfa; i++)
+    {
+      FACE tmpface_y;
+      //Giving the nodes
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-3)*nno_i);
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_bc +(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-3)*nno_i);
+
+
+      if(face_2D[i].node[1]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[1]+(kmax-1)*nno_i);
+
+      if(face_2D[i].node[0]>=nno_i)
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_bc+(kmax-1)*nno_i);
+      else
+        tmpface_y.node.push_back(face_2D[i].node[0]+(kmax-1)*nno_i);
+
+
+      //Giving the elements
+      if(face_2D[i].elem_1>nel_i)        tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_bc+(kmax-2)*nel_i; //(kmax-1)*nel_i
+      else                               tmpface_y.elem_1= face_2D[i].elem_1 + (kmax-2)*nel_i;
+      
+
+      if(face_2D[i].elem_2==0)
+            tmpface_y.elem_2= face_2D[i].elem_2;
+      else
+            cout<<"mesh2Dto3D, boundary mesh should have elem_2 as zero"<<endl;
+    
+      //Giving the name of the face as the one in the original 2D mesh
+      strcpy (tmpface_y.name,face_2D[i].name);
+
+      //Plugging face in imesh
+      mesh3D.faces.push_back(tmpface_y);
+
+    }
+
+
+  face_2D.clear();
+  elem_i_2D.clear();
+  elem_v_2D.clear();
 
   return(mesh3D);
 }
-
-UNSTRUCTMESH MESHTOOLS::buildMesh3DNewwithFace(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme)    //GUSTAVO 15/06/16
- {
-  /* Made by Gustavo J. Otero Date: 01-04-2016
-     * For this function generates a 3D mesh from two or more meshes (they do not need to be 2D_. That is why the input is a deque of meshes.
-     *  It includes the generatation of the faces, later use for the creating of the Fluent *msh file
-     *
-     *
-     */
-   UNSTRUCTMESH mesh3D;
-   deque<int> elem_v_2D, elem_i_2D;
-   deque<int> face_elem_2D, face_i_2D;
-
-//   cout<<"Number of vertices in original mesh   "<< layers2D[0].nodes.size() <<endl;
-//   cout<<"Number of elements in original mesh   "<< layers2D[0].elem_i.size()-1 <<endl;
-//   cout<<"Number of faces in original mesh   "<< layers2D[0].face_i.size() <<endl;
-
-    for(int i=0; i<layers2D.size(); i++)
-    {
-      cout<<"Number of vertices in original mesh layer "    << i << ": "<< layers2D[i].nodes.size() <<endl;
-      cout<<"Number of elements in original mesh layer "    << i << ": "<< layers2D[i].elem_i.size()-1 <<endl;
-      cout<<"Number of faces in original mesh layer "       << i << ": "<< layers2D[i].face_i.size() <<endl;
-
-      if((i>0) && i<layers2D.size()-1)
-        if(layers2D[i-1].nodes.size()- layers2D[i].nodes.size() != 0)
-        {
-          cout<<"Error, the number of vertices of each mesh is not the same"<<endl;
-          throw(-1);
-        }
-    }
-
-
-
-
-   deque< deque<POINT> > points2D;
-   //deque<UNSTRUCTMESH> layers2D;
-
-   // Copying the 2D mesh and the nodes that construct them
-   for (int i=0; i<layers2D.size();i++)
-   {
-     //UNSTRUCTMESH tmp_mesh;
-     deque<POINT> tmpPts;
-
-     //tmp_mesh= unstMesh;
-     //    tmp_mesh(unstMesh);
-     for (int j=0;j<layers2D[0].nodes.size();j++)
-     {
-       //tmp_mesh.nodes[j].pt=unstMesh.nodes[j].pt+POINT(0.0,0.0,i*dz);        //making a copy of the 2D mesh at a certain dz up!!
-       tmpPts.push_back(layers2D[i].nodes[j].pt);
-     }
-     points2D.push_back(tmpPts);
-     //layers2D.push_back(tmp_mesh);
-
-
-   }
-
-   elem_v_2D = layers2D[0].elem_v;
-   elem_i_2D = layers2D[0].elem_i;
-   face_elem_2D = layers2D[0].face_elem;
-   face_i_2D = layers2D[0].face_i;
-
-
-
-   int nvert = (int)points2D[0].size();
-   int nelem = (int)elem_i_2D.size()-1;
-   int nface = (int)face_i_2D.size();
-
-   // NODES OF THE 3D MESH
-
-   // Cpying the nodes in the other direction, in this case z!
-   deque< deque<POINT> > nodes3D;    //number of nodes in the 2D mesh x number of layers in z
-
-
-//   for (int i=0; i<nvert; i++)
-//   {
-//     deque<POINT> nodes_i;
-//
-//     deque<POINT> splinepts;
-//     for (int s=0; s<points2D.size(); s++)
-//       splinepts.push_back(points2D[s][i]);
-//
-//     LINE span(splinepts);
-//     // define distribution in the spanwise direction
-//     double distr[nLayers];
-//     //firstLastLengthDistr(dz/nLayers, dz/nLayers, nLayers, distr);      //First lenght and last lenght can be used for boundary layer in the spanwise direction
-//
-//     //-------------------------------------------------------
-//     double z1=layers2D[1].nodes[i].pt.z;
-//     double z0=layers2D[0].nodes[i].pt.z;
-//     double span_distance=z1-z0; //layers2D[i].nodes[j].pt
-//
-//
-//     for (int i=0; i<nLayers; i++)
-//       distr[i] = (double)i/(double)(nLayers-1);
-//     //firstLastLengthDistr(span_distance/nLayers, span_distance/nLayers, nLayers, distr);
-//     //-------------------------------------------------------
-//
-//     for (int l=0; l<nLayers; l++)
-//       nodes_i.push_back(span.calcPoint(distr[l]));
-//
-//     nodes3D.push_back(nodes_i);
-//   }
-   for (int i=0; i<nvert; i++)
-    {
-      deque<POINT> nodes_i;
-
-      deque<POINT> splinepts;
-      for (int s=0; s<points2D.size(); s++)
-        splinepts.push_back(points2D[s][i]);
-
-
-      if (interpScheme == "LINE")
-      {
-        LINE span(splinepts);
-        // define distribution in the spanwise direction
-        double distr[nLayers];
-        for (int i=0; i<nLayers; i++)
-          distr[i] = (double)i/(double)(nLayers-1);
-  //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-        for (int l=0; l<nLayers; l++)
-          nodes_i.push_back(span.calcPoint(distr[l]));
-      }
-      else if (interpScheme == "SPLINE")
-      {
-        SPLINE span(splinepts);
-        // define distribution in the spanwise direction
-        double distr[nLayers];
-        for (int i=0; i<nLayers; i++)
-          distr[i] = (double)i/(double)(nLayers-1);
-  //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-        for (int l=0; l<nLayers; l++)
-          nodes_i.push_back(span.calcPoint(distr[l]));
-      }
-      else if (interpScheme == "BEZIER")
-      {
-        BEZIER span(splinepts);
-        // define distribution in the spanwise direction
-        double distr[nLayers];
-        for (int i=0; i<nLayers; i++)
-          distr[i] = (double)i/(double)(nLayers-1);
-  //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-        for (int l=0; l<nLayers; l++)
-          nodes_i.push_back(span.calcPoint(distr[l]));
-      }
-      else
-      {
-        cout << "error: interpolation " << interpScheme << " not implemented" << endl;
-        throw(-10);
-      }
-
-      nodes3D.push_back(nodes_i);
-
-
-    }
-
-
-//   for (int i=0; i<nvert; i++)
-//   {
-//     deque<POINT> nodes_i;
-//
-//     deque<POINT> splinepts;
-//     for (int s=0; s<points2D.size(); s++)
-//       splinepts.push_back(points2D[s][i]);
-//
-//
-//     if (interpScheme == "LINE")
-//     {
-//       LINE span(splinepts);
-//       // define distribution in the spanwise direction
-//       double distr[nLayers];
-//       for (int i=0; i<nLayers; i++)
-//         distr[i] = (double)i/(double)(nLayers-1);
-//       //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-//       for (int l=0; l<nLayers; l++)
-//         nodes_i.push_back(span.calcPoint(distr[l]));
-//     }
-//     else if (interpScheme == "SPLINE")
-//     {
-//       SPLINE span(splinepts);
-//       // define distribution in the spanwise direction
-//       double distr[nLayers];
-//       for (int i=0; i<nLayers; i++)
-//         distr[i] = (double)i/(double)(nLayers-1);
-//       //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-//       for (int l=0; l<nLayers; l++)
-//         nodes_i.push_back(span.calcPoint(distr[l]));
-//     }
-//     else if (interpScheme == "BEZIER")
-//     {
-//       BEZIER span(splinepts);
-//       // define distribution in the spanwise direction
-//       double distr[nLayers];
-//       for (int i=0; i<nLayers; i++)
-//         distr[i] = (double)i/(double)(nLayers-1);
-//       //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-//       for (int l=0; l<nLayers; l++)
-//         nodes_i.push_back(span.calcPoint(distr[l]));
-//     }
-//     else
-//     {
-//       cout << "error: interpolation " << interpScheme << " not implemented" << endl;
-//       throw(-10);
-//     }
-//
-//     nodes3D.push_back(nodes_i);
-//   }
-
-
-   for (int l=0; l<nLayers; l++)
-     for (int i=0; i<nvert; i++)
-     {
-       NODE tmp;
-       tmp.pt = nodes3D[i][l];
-       mesh3D.nodes.push_back(tmp);
-     }
-   //   mesh3D.nno_i = mesh3D.nodes.size() - nvert;
-
-
-
-   // ELEMENTS OF THE 3D MESH
-   int k=0;
-   mesh3D.elem_i.push_back(k);
-   for (int l=0; l<nLayers-1; l++)
-     for (int c=0; c<nelem; c++)
-     {
-       deque<int> tmpElem;
-       for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-         mesh3D.elem_v.push_back(elem_v_2D[i]+(l+1)*nvert);
-
-       for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-         mesh3D.elem_v.push_back(elem_v_2D[i]+(l)*nvert);
-
-       k += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
-       mesh3D.elem_i.push_back(k);
-     }
-   mesh3D.nel_i = mesh3D.elem_i.size() - 1 - nelem;
-
-
-   // FACES OF THE 3D MESH      With its connectivity as the *.msh files needs
-/*          ORIGINAl WORKING LOOP, BUT SLOOOOOW!!!!!!!
-   for (int l=0; l<nLayers-1; l++)
-     for(int i=0; i<elem_i_2D.size()-1; i++)
-     {
-       FACE tmpface_x1;
-       for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
-         tmpface_x1.node.push_back(elem_v_2D[j]+(l*nvert));
-
-       tmpface_x1.elem_1= (i+1)+(l*nelem);
-       tmpface_x1.elem_2= 0;//l*(i+1+nelem);
-       //Naming the boundary at z = zmin
-       if(l==0)   strcpy (tmpface_x1.name,"bottom");
-//         cout<<endl;
-       mesh3D.faces.push_back(tmpface_x1);
-
-       FACE tmpface_x2;
-       for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)    tmpface_x2.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-
-       tmpface_x2.elem_1= (i+1)+(l*nelem);
-//         if (l!=nLayers-2) tmpface_x2.elem_2= l*(i+1+nelem);
-//         else tmpface_x2.elem_2= 0;
-       tmpface_x2.elem_2= 0;
-       //Naming the boundary at z = zmax
-       if(l==nLayers-2)   strcpy (tmpface_x2.name,"top");
-       mesh3D.faces.push_back(tmpface_x2);
-
-       for(int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
-       {
-         FACE tmpface_y;
-         if(elem_i_2D[i+1]-j>1)
-         {
-           tmpface_y.node.push_back(elem_v_2D[j+1]+(l*nvert));
-           tmpface_y.node.push_back(elem_v_2D[j]+(l*nvert));
-           tmpface_y.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-           tmpface_y.node.push_back(elem_v_2D[j+1]+((l+1)*nvert));
-         }
-         else
-         {
-           tmpface_y.node.push_back(elem_v_2D[elem_i_2D[i]]+(l*nvert));
-           tmpface_y.node.push_back(elem_v_2D[elem_i_2D[i+1]-1]+(l*nvert));
-           tmpface_y.node.push_back(elem_v_2D[elem_i_2D[i+1]-1]+((l+1)*nvert));
-           tmpface_y.node.push_back(elem_v_2D[elem_i_2D[i]]+((l+1)*nvert));
-         }
-         tmpface_y.elem_1= (i+1)+(l*nelem);
-         tmpface_y.elem_2= 0;
-
-         mesh3D.faces.push_back(tmpface_y);
-       }
-//         cout<<"In side face calculation" <<endl;
-
-     }
-
-
-
-
-     */
-
-   ///WIth the with list
-//     if(layers2D[0].face_i.size()!=0)
-//     {
-//       int count=0;
-//       for (int l=0; l<nLayers-1; l++)
-//       {
-//         //--------------------------------------------------------------------------
-//         // Faces perpendicular to the original 2D mesh
-//         for(int i=0; i<layers2D[0].face_i.size(); i++)
-//         {
-////           FACE tmpface_y;
-//
-//           //Giving the nodes
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]+1]+(l*nvert));
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]]+(l*nvert));
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]]+((l+1)*nvert));
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]+1]+((l+1)*nvert));
-//
-//           //Index
-//           mesh3D.face_i.push_back(4*count);//(4*i+l*nvert);
-//           count++;
-//
-//           //Giving the elements
-//           mesh3D.face_elem.push_back(face_elem_2D[2*i]+(l*nelem));
-//
-//           if(layers2D[0].face_elem[2*i+1]==0)    mesh3D.face_elem.push_back(0);
-//           else                                   mesh3D.face_elem.push_back(face_elem_2D[2*i+1]+(l*nelem));
-//
-//           //Giving the name of the face as the one in the original 2D mesh
-//           mesh3D.face_name.push_back(layers2D[0].face_name[i]);
-//
-//         }
-//         //--------------------------------------------------------------------------
-//         // Faces parallel to the original 2D mesh
-//         for(int i=0; i<elem_i_2D.size()-1; i++)
-//         {
-//           //Giving the nodes
-//           for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
-//             mesh3D.face_v.push_back(elem_v_2D[j]+(l*nvert));//tmpface_x1.node.push_back(elem_v_2D[j]+(l*nvert));
-//
-//           //Index
-//           mesh3D.face_i.push_back(4*count);//(4*i+l*nvert);
-//           count++;
-//
-//           //Giving the elements and the names!
-//           if(l==0)                                 //Faces of the bottom layer
-//           {
-//             mesh3D.face_elem.push_back((i+1)+(l*nelem));       //tmpface_x1.elem_1= (i+1)+(l*nelem);
-//             mesh3D.face_elem.push_back(0);                     //tmpface_x1.elem_2= 0;//l*(i+1+nelem);
-//             mesh3D.face_name.push_back("bottom");              //strcpy (tmpface_x1.name,"bottom");
-//           }
-//           else                                     //Faces In-between two layers
-//           {
-//             mesh3D.face_elem.push_back((i+1)+(l*nelem)); //tmpface_x1.elem_1= (i+1)+((l)*nelem); //l*(i+1+nelem);
-//             mesh3D.face_elem.push_back((i+1)+((l-1)*nelem)); //tmpface_x1.elem_2= (i+1)+((l-1)*nelem);
-//             mesh3D.face_name.push_back("fluid"); //strcpy (tmpface_x1.name,"fluid");
-//           }
-////           mesh3D.faces.push_back(tmpface_x1);
-//           //--------------------------------------------------------------------------
-//           if(l==nLayers-2)         //Faces of the top layer
-//           {
-////             FACE tmpface_x2;
-//             //Giving the nodes
-//             for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)
-//               mesh3D.face_v.push_back(elem_v_2D[j]+((l+1)*nvert)); //tmpface_x2.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-//
-//             //Index
-//             mesh3D.face_i.push_back(4*count);//(4*i+l*nvert);
-//             count++;
-//
-//             //Giving the elements and the names!
-//             mesh3D.face_elem.push_back((i+1)+(l*nelem));       //tmpface_x2.elem_1= (i+1)+(l*nelem);
-//             mesh3D.face_elem.push_back(0);                     //tmpface_x2.elem_2= 0;
-//             mesh3D.face_name.push_back("top");              //strcpy (tmpface_x2.name,"top");
-//
-////             mesh3D.faces.push_back(tmpface_x2);
-//           }
-//         }
-//       }
-//
-//
-//
-//       //     mesh3D.removeDoubleFaces();
-//
-//     }
-   //Faces with Objects!
-   if(layers2D[0].faces.size()!=0)
-   {
-     for (int l=0; l<nLayers-1; l++)
-     {
-       //--------------------------------------------------------------------------
-       // Faces parallel to the original 2D mesh
-       for(int i=0; i<layers2D[0].faces.size(); i++)
-       {
-         FACE tmpface_y;
-
-         //Giving the elements
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[0]+(l*nvert));
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[1]+(l*nvert));
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[1]+((l+1)*nvert));
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[0]+((l+1)*nvert));
-
-         //Giving the elements
-         tmpface_y.elem_1= layers2D[0].faces[i].elem_1+(l*nelem);
-
-         if(layers2D[0].faces[i].elem_2==0)     tmpface_y.elem_2= 0;
-         else                                   tmpface_y.elem_2= layers2D[0].faces[i].elem_2+(l*nelem);
-
-         //Giving the name of the face as the one in the original 2D mesh
-         strcpy (tmpface_y.name,layers2D[0].faces[i].name);
-
-
-         mesh3D.faces.push_back(tmpface_y);
-
-       }
-       //--------------------------------------------------------------------------
-       // Faces parallel to the original 2D mesh
-       for(int i=0; i<elem_i_2D.size()-1; i++)
-       {
-         FACE tmpface_x1;
-         for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
-           tmpface_x1.node.push_back(elem_v_2D[j]+(l*nvert));
-
-         if(l==0)                                 //Faces of the bottom layer
-         {
-           tmpface_x1.elem_1= (i+1)+(l*nelem);
-           tmpface_x1.elem_2= 0;//l*(i+1+nelem);
-           strcpy (tmpface_x1.name,"bottom");
-         }
-         else                                     //Faces In-between two layers
-         {
-           tmpface_x1.elem_1= (i+1)+((l)*nelem); //l*(i+1+nelem);
-           tmpface_x1.elem_2= (i+1)+((l-1)*nelem);
-           strcpy (tmpface_x1.name,"fluid");
-         }
-         mesh3D.faces.push_back(tmpface_x1);
-         //--------------------------------------------------------------------------
-         if(l==nLayers-2)         //Faces of the top layer
-         {
-           FACE tmpface_x2;
-           for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)    tmpface_x2.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-
-           tmpface_x2.elem_1= (i+1)+(l*nelem);
-           tmpface_x2.elem_2= 0;
-           strcpy (tmpface_x2.name,"top");
-
-           mesh3D.faces.push_back(tmpface_x2);
-         }
-
-         // THe following piece of code will create face which are doubled!!!
-         //       FACE tmpface_x2;
-         //       for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)    tmpface_x2.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-         //       tmpface_x2.elem_1= (i+1)+(l*nelem);
-         //       if(l==nLayers-2)
-         //       {
-         //         tmpface_x2.elem_2= 0;
-         //         strcpy (tmpface_x2.name,"top");
-         //       }
-         //       else
-         //       {
-         //         tmpface_x2.elem_2= (i+1)+((l-1)*nelem); //l*(i+1+nelem);
-         //         strcpy (tmpface_x2.name,"fluid");
-         //       }
-         //       mesh3D.faces.push_back(tmpface_x2);
-
-         //--------------------------------------------------------------------------
-         //         cout<<"In side face calculation" <<endl;
-       }
-     }
-   }
-   else
-     cout<<"Inside: buildMesh3DNew(): The 2D faces objects of the mesh were not already created! Therefore the face connectivity for the *.msh was not created" <<endl;
-
-
-   return(mesh3D);
- }
-
-
-UNSTRUCTMESH MESHTOOLS::buildMesh3DNewwithFace_obj(deque<UNSTRUCTMESH> &layers2D, const int nLayers, const double firstLength, const double lastLength, const string &interpScheme)    //GUSTAVO 15/06/16
- {
-  /* Made by Gustavo J. Otero Date: 01-04-2016
-     * For this function generates a 3D mesh from two or more meshes (they do not need to be 2D_. That is why the input is a deque of meshes.
-     *  It includes the generatation of the faces, later use for the creating of the Fluent *msh file
-     *
-     *
-     */
-   UNSTRUCTMESH mesh3D;
-   deque<int> elem_v_2D, elem_i_2D;
-   deque<int> face_elem_2D, face_i_2D;
-
-//   cout<<"Number of vertices in original mesh   "<< layers2D[0].nodes.size() <<endl;
-//   cout<<"Number of elements in original mesh   "<< layers2D[0].elem_i.size()-1 <<endl;
-//   cout<<"Number of faces in original mesh   "<< layers2D[0].face_i.size() <<endl;
-
-    for(int i=0; i<layers2D.size(); i++)
-    {
-      cout<<"Number of vertices in original mesh layer "    << i << ": "<< layers2D[i].nodes.size() <<endl;
-      cout<<"Number of elements in original mesh layer "    << i << ": "<< layers2D[i].elem_i.size()-1 <<endl;
-      cout<<"Number of faces in original mesh layer "       << i << ": "<< layers2D[i].face_i.size() <<endl;
-
-      if((i>0) && i<layers2D.size()-1)
-        if(layers2D[i-1].nodes.size()- layers2D[i].nodes.size() != 0)
-        {
-          cout<<"Error, the number of vertices of each mesh is not the same"<<endl;
-          throw(-1);
-        }
-    }
-
-
-
-
-   deque< deque<POINT> > points2D;
-   //deque<UNSTRUCTMESH> layers2D;
-
-   // Copying the 2D mesh and the nodes that construct them
-   for (int i=0; i<layers2D.size();i++)
-   {
-     //UNSTRUCTMESH tmp_mesh;
-     deque<POINT> tmpPts;
-
-     //tmp_mesh= unstMesh;
-     //    tmp_mesh(unstMesh);
-     for (int j=0;j<layers2D[0].nodes.size();j++)
-     {
-       //tmp_mesh.nodes[j].pt=unstMesh.nodes[j].pt+POINT(0.0,0.0,i*dz);        //making a copy of the 2D mesh at a certain dz up!!
-       tmpPts.push_back(layers2D[i].nodes[j].pt);
-     }
-     points2D.push_back(tmpPts);
-     //layers2D.push_back(tmp_mesh);
-
-
-   }
-
-   elem_v_2D = layers2D[0].elem_v;
-   elem_i_2D = layers2D[0].elem_i;
-   face_elem_2D = layers2D[0].face_elem;
-   face_i_2D = layers2D[0].face_i;
-
-
-
-   int nvert = (int)points2D[0].size();
-   int nelem = (int)elem_i_2D.size()-1;
-   int nface = (int)face_i_2D.size();
-
-   // NODES OF THE 3D MESH
-
-   // Cpying the nodes in the other direction, in this case z!
-   deque< deque<POINT> > nodes3D;    //number of nodes in the 2D mesh x number of layers in z
-
-   //Distribution along the span
-   double distr[nLayers];
-   for (int i=0; i<nLayers; i++)
-     distr[i] = (double)i/(double)(nLayers-1);
-   //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-
-
-   for (int i=0; i<nvert; i++)
-   {
-     deque<POINT> nodes_i;
-
-     deque<POINT> splinepts;
-     for (int s=0; s<points2D.size(); s++)
-       splinepts.push_back(points2D[s][i]);
-
-
-     if (interpScheme == "LINE")
-     {
-       LINE span(splinepts);
-       // define distribution in the spanwise direction
-       double distr[nLayers];
-       for (int i=0; i<nLayers; i++)
-         distr[i] = (double)i/(double)(nLayers-1);
-       //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-       for (int l=0; l<nLayers; l++)
-         nodes_i.push_back(span.calcPoint(distr[l]));
-     }
-     else if (interpScheme == "SPLINE")
-     {
-       SPLINE span(splinepts);
-       // define distribution in the spanwise direction
-       double distr[nLayers];
-       for (int i=0; i<nLayers; i++)
-         distr[i] = (double)i/(double)(nLayers-1);
-       //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-       for (int l=0; l<nLayers; l++)
-         nodes_i.push_back(span.calcPoint(distr[l]));
-     }
-     else if (interpScheme == "BEZIER")
-     {
-       BEZIER span(splinepts);
-       // define distribution in the spanwise direction
-       double distr[nLayers];
-       for (int i=0; i<nLayers; i++)
-         distr[i] = (double)i/(double)(nLayers-1);
-       //      firstLastLengthDistr(firstLength/span.length, lastLength/span.length, nLayers, distr);
-       for (int l=0; l<nLayers; l++)
-         nodes_i.push_back(span.calcPoint(distr[l]));
-     }
-     else
-     {
-       cout << "error: interpolation " << interpScheme << " not implemented" << endl;
-       throw(-10);
-     }
-
-     nodes3D.push_back(nodes_i);
-   }
-
-
-   for (int l=0; l<nLayers; l++)
-     for (int i=0; i<nvert; i++)
-     {
-       NODE tmp;
-       tmp.pt = nodes3D[i][l];
-       mesh3D.nodes.push_back(tmp);
-     }
-   //   mesh3D.nno_i = mesh3D.nodes.size() - nvert;
-
-
-
-   // ELEMENTS OF THE 3D MESH
-   int k=0;
-   mesh3D.elem_i.push_back(k);
-   for (int l=0; l<nLayers-1; l++)
-     for (int c=0; c<nelem; c++)
-     {
-       deque<int> tmpElem;
-       for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-         mesh3D.elem_v.push_back(elem_v_2D[i]+(l+1)*nvert);
-
-       for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-         mesh3D.elem_v.push_back(elem_v_2D[i]+(l)*nvert);
-
-       k += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
-       mesh3D.elem_i.push_back(k);
-     }
-   mesh3D.nel_i = mesh3D.elem_i.size() - 1 - nelem;
-
-
-   // FACES OF THE 3D MESH      With its connectivity as the *.msh files needs
-
-
-   if(layers2D[0].faces.size()!=0)
-     for (int l=0; l<nLayers-1; l++)
-     {
-       //--------------------------------------------------------------------------
-       // Faces parallel to the original 2D mesh
-       for(int i=0; i<layers2D[0].faces.size(); i++)
-       {
-         FACE tmpface_y;
-
-         //Giving the elements
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[0]+(l*nvert));
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[1]+(l*nvert));
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[1]+((l+1)*nvert));
-         tmpface_y.node.push_back(layers2D[0].faces[i].node[0]+((l+1)*nvert));
-
-         //Giving the elements
-         tmpface_y.elem_1= layers2D[0].faces[i].elem_1+(l*nelem);
-
-         if(layers2D[0].faces[i].elem_2==0)     tmpface_y.elem_2= 0;
-         else                                   tmpface_y.elem_2= layers2D[0].faces[i].elem_2+(l*nelem);
-
-         //Giving the name of the face as the one in the original 2D mesh
-         strcpy (tmpface_y.name,layers2D[0].faces[i].name);
-
-
-         mesh3D.faces.push_back(tmpface_y);
-
-       }
-       //--------------------------------------------------------------------------
-       // Faces parallel to the original 2D mesh
-       for(int i=0; i<elem_i_2D.size()-1; i++)
-       {
-         FACE tmpface_x1;
-         //Giving the nodes
-         for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
-           tmpface_x1.node.push_back(elem_v_2D[j]+(l*nvert));
-
-         //Giving the elements and the names!
-         if(l==0)                                 //Faces of the bottom layer
-         {
-           tmpface_x1.elem_1= (i+1)+(l*nelem);
-           tmpface_x1.elem_2= 0;//l*(i+1+nelem);
-           strcpy (tmpface_x1.name,"bottom");
-         }
-         else                                     //Faces In-between two layers
-         {
-           tmpface_x1.elem_1= (i+1)+((l)*nelem); //l*(i+1+nelem);
-           tmpface_x1.elem_2= (i+1)+((l-1)*nelem);
-           strcpy (tmpface_x1.name,"fluid");
-         }
-         mesh3D.faces.push_back(tmpface_x1);
-         //--------------------------------------------------------------------------
-         if(l==nLayers-2)         //Faces of the top layer
-         {
-           FACE tmpface_x2;
-           //Giving the nodes
-           for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)
-             tmpface_x2.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-
-           tmpface_x2.elem_1= (i+1)+(l*nelem);
-           tmpface_x2.elem_2= 0;
-           strcpy (tmpface_x2.name,"top");
-
-           mesh3D.faces.push_back(tmpface_x2);
-         }
-
-         // THe following piece of code will create face which are doubled!!!
-         //       FACE tmpface_x2;
-         //       for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)    tmpface_x2.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-         //       tmpface_x2.elem_1= (i+1)+(l*nelem);
-         //       if(l==nLayers-2)
-         //       {
-         //         tmpface_x2.elem_2= 0;
-         //         strcpy (tmpface_x2.name,"top");
-         //       }
-         //       else
-         //       {
-         //         tmpface_x2.elem_2= (i+1)+((l-1)*nelem); //l*(i+1+nelem);
-         //         strcpy (tmpface_x2.name,"fluid");
-         //       }
-         //       mesh3D.faces.push_back(tmpface_x2);
-
-         //--------------------------------------------------------------------------
-         //         cout<<"In side face calculation" <<endl;
-       }
-     }
-   else
-     cout<<"Inside: buildMesh3DNew(): The 2D faces objects of the mesh were not already created! Therefore the face connectivity for the *.msh was not created" <<endl;
-
-
-
-//     ///WIth the newwwwwww
-//     if(layers2D[0].face_i.size()!=0)
-//     {
-//       int count=0;
-//       for (int l=0; l<nLayers-1; l++)
-//       {
-//         //--------------------------------------------------------------------------
-//         // Faces perpendicular to the original 2D mesh
-//         for(int i=0; i<layers2D[0].face_i.size(); i++)
-//         {
-//           //           FACE tmpface_y;
-//
-//           //Giving the nodes
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]+1]+(l*nvert));
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]]+(l*nvert));
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]]+((l+1)*nvert));
-//           mesh3D.face_v.push_back(layers2D[0].face_v[face_i_2D[i]+1]+((l+1)*nvert));
-//
-//           //Index
-//           mesh3D.face_i.push_back(4*count);//(4*i+l*nvert);
-//           count++;
-//
-//           //Giving the elements
-//           mesh3D.face_elem.push_back(face_elem_2D[2*i]+(l*nelem));
-//
-//           if(layers2D[0].face_elem[2*i+1]==0)    mesh3D.face_elem.push_back(0);
-//           else                                   mesh3D.face_elem.push_back(face_elem_2D[2*i+1]+(l*nelem));
-//
-//           //Giving the name of the face as the one in the original 2D mesh
-//           mesh3D.face_name.push_back(layers2D[0].face_name[i]);
-//
-//         }
-//         //--------------------------------------------------------------------------
-//         // Faces parallel to the original 2D mesh
-//         for(int i=0; i<elem_i_2D.size()-1; i++)
-//         {
-//           //Giving the nodes
-//           for (int j=elem_i_2D[i]; j<elem_i_2D[i+1]; j++)
-//             mesh3D.face_v.push_back(elem_v_2D[j]+(l*nvert));//tmpface_x1.node.push_back(elem_v_2D[j]+(l*nvert));
-//
-//           //Index
-//           mesh3D.face_i.push_back(4*count);//(4*i+l*nvert);
-//           count++;
-//
-//           //Giving the elements and the names!
-//           if(l==0)                                 //Faces of the bottom layer
-//           {
-//             mesh3D.face_elem.push_back((i+1)+(l*nelem));       //tmpface_x1.elem_1= (i+1)+(l*nelem);
-//             mesh3D.face_elem.push_back(0);                     //tmpface_x1.elem_2= 0;//l*(i+1+nelem);
-//             mesh3D.face_name.push_back("bottom");              //strcpy (tmpface_x1.name,"bottom");
-//           }
-//           else                                     //Faces In-between two layers
-//           {
-//             mesh3D.face_elem.push_back((i+1)+(l*nelem)); //tmpface_x1.elem_1= (i+1)+((l)*nelem); //l*(i+1+nelem);
-//             mesh3D.face_elem.push_back((i+1)+((l-1)*nelem)); //tmpface_x1.elem_2= (i+1)+((l-1)*nelem);
-//             mesh3D.face_name.push_back("fluid"); //strcpy (tmpface_x1.name,"fluid");
-//           }
-//           //           mesh3D.faces.push_back(tmpface_x1);
-//           //--------------------------------------------------------------------------
-//           if(l==nLayers-2)         //Faces of the top layer
-//           {
-//             //             FACE tmpface_x2;
-//             //Giving the nodes
-//             for (int j=elem_i_2D[i+1]-1; j>elem_i_2D[i]-1; j--)
-//               mesh3D.face_v.push_back(elem_v_2D[j]+((l+1)*nvert)); //tmpface_x2.node.push_back(elem_v_2D[j]+((l+1)*nvert));
-//
-//             //Index
-//             mesh3D.face_i.push_back(4*count);//(4*i+l*nvert);
-//             count++;
-//
-//             //Giving the elements and the names!
-//             mesh3D.face_elem.push_back((i+1)+(l*nelem));       //tmpface_x2.elem_1= (i+1)+(l*nelem);
-//             mesh3D.face_elem.push_back(0);                     //tmpface_x2.elem_2= 0;
-//             mesh3D.face_name.push_back("top");              //strcpy (tmpface_x2.name,"top");
-//
-//             //             mesh3D.faces.push_back(tmpface_x2);
-//           }
-//         }
-//       }
-//
-//
-//
-//       //     mesh3D.removeDoubleFaces();
-//
-//     }
-//     else
-//       cout<<"Inside: buildMesh3DNew(): The 2D faces objects of the mesh were not already created! Therefore the face connectivity for the *.msh was not created" <<endl;
-
-
-     return(mesh3D);
-   }
 
 void MESHTOOLS::writeFluentMsh_Interface(const char *filename, const UNSTRUCTMESH meshL, const UNSTRUCTMESH meshR ,  deque<string> bc_names)
 {
@@ -2520,6 +3221,10 @@ void MESHTOOLS::writeFluentMsh_Interface(const char *filename, const UNSTRUCTMES
     exit(-1);
   }
 
+  //
+  // header and global dimensions
+  //
+
   fprintf(fp,"(0 \"Project to Fluent\")\n");
   fprintf(fp,"\n");
   fprintf(fp,"(1 \"In-house Mesh Generator\")\n");
@@ -2528,19 +3233,20 @@ void MESHTOOLS::writeFluentMsh_Interface(const char *filename, const UNSTRUCTMES
   fprintf(fp,"(2 3)\n");
   fprintf(fp,"\n");
 
+
   //
-  // header and global dimensions
+  // important variables used
   //
 
   int verticesR = meshR.nodes.size();
   int elementsR = meshR.elem_i.size()-1;
-  int nfacesR = meshR.face_i.size();
+  int nfacesR = meshR.faces.size();
   int nzoneR = meshR.n_zone;
 
 
   int verticesL = meshL.nodes.size();
   int elementsL = meshL.elem_i.size()-1;
-  int nfacesL = meshL.face_i.size();
+  int nfacesL = meshL.faces.size();
   int nzoneL = meshL.n_zone;
 
   int vertices =verticesL + verticesR;
@@ -2548,9 +3254,12 @@ void MESHTOOLS::writeFluentMsh_Interface(const char *filename, const UNSTRUCTMES
   int nfaces = nfacesL + nfacesR;
   int nzone =nzoneL + nzoneL - 3;   // top, bottom and fluid are already in both meshes!
 
+
+  //
+  // printing the nodes
+  //
+
   fprintf(fp,"(0 \"Grid:\")\n");
-//  fprintf(fp,"\n");
-//  fprintf(fp,"(13 (0 %x %x 0))\n",1, nfaces);
 
   fprintf(fp,"\n");
 
@@ -2568,6 +3277,7 @@ void MESHTOOLS::writeFluentMsh_Interface(const char *filename, const UNSTRUCTMES
   //
   // start of faces
   //
+
   int fa_element_type = 4; // hexahedral = 4
   int fa_type = 0; //1; // active = 1 - inactive = 32
 //  nfaces=106;
@@ -2576,237 +3286,33 @@ void MESHTOOLS::writeFluentMsh_Interface(const char *filename, const UNSTRUCTMES
 
   int ind_faces[nzone+1];      //Index of the current zone
 
+  //Checking if all the boundaries are named
+
   bool zone_noname=false;
   for(int i=0; i<nfacesL; i++)
-    if(meshL.face_name[i].compare("noname")==0) //if(strcmp (meshL.face_name[i], "noname") == 0)
+    if(strcmp (meshL.faces[i].name, "noname") == 0)
     {
       zone_noname=true;
       cout<<"WARNING: At least one of the faces in the Left side was not named! All the face zones will be named together as: boundaries"<<endl;
       break;
     }
   for(int i=0; i<nfacesR; i++)
-    if(meshR.face_name[i].compare("noname")==0) //if(strcmp (meshR.faces[i].name, "noname") == 0)
+    if(strcmp (meshR.faces[i].name, "noname") == 0)
     {
       zone_noname=true;
       cout<<"WARNING: At least one of the faces in the Right side was not named! All the face zones will be named together as: boundaries"<<endl;
       break;
     }
 
-
   if(zone_noname)
   {
+    //In case that not all the faces are named
 
     int faces_wall=0;
     for(int i=0; i<nfacesL; i++)
-      if(meshL.face_elem[(2*i)+1]==0)  faces_wall++;
+      if(meshL.faces[i].elem_2==0) faces_wall++;
     for(int i=0; i<nfacesR; i++)
-      if(meshR.face_elem[(2*i)+1]==0)  faces_wall++;
-
-    //WALL FACES
-    ind_faces[0]=3;
-
-    fprintf(fp,"(13 (%x %x %x 3 0)(\n", ind_faces[0] ,1, faces_wall);
-    for(int i=0; i<nfacesL; i++)
-      if(meshL.face_elem[(2*i)+1]==0)  fprintf(fp,"4 %x %x %x %x %x %x \n",  meshL.face_v[meshL.face_i[i]]+1 ,           meshL.face_v[meshL.face_i[i]+1]+1 ,               meshL.face_v[meshL.face_i[i]+2]+1 ,             meshL.face_v[meshL.face_i[i]+3]+1 ,               meshL.face_elem[(2*i)],             meshL.face_elem[(2*i)+1]);
-    for(int i=0; i<nfacesR; i++)
-      if(meshR.face_elem[(2*i)+1]==0)  fprintf(fp,"4 %x %x %x %x %x %x \n",  meshR.face_v[meshR.face_i[i]]+1+verticesL , meshR.face_v[meshR.face_i[i]+1]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]+elementsL);
-
-
-    fprintf(fp, "))\n");
-
-    //INNER FACES
-    ind_faces[1]=5;
-    fprintf(fp,"(13 (%x %x %x 2 0)(\n", ind_faces[1] ,faces_wall+1, nfaces);
-    for(int i=0; i<nfacesL; i++)
-      if(meshL.face_elem[(2*i)+1]>0)   fprintf(fp,"4 %x %x %x %x %x %x \n",  meshL.face_v[meshL.face_i[i]]+1 ,           meshL.face_v[meshL.face_i[i]+1]+1 ,               meshL.face_v[meshL.face_i[i]+2]+1 ,             meshL.face_v[meshL.face_i[i]+3]+1 ,               meshL.face_elem[(2*i)],             meshL.face_elem[(2*i)+1]);
-    for(int i=0; i<nfacesR; i++)
-      if(meshR.face_elem[(2*i)+1]>0)   fprintf(fp,"4 %x %x %x %x %x %x \n",  meshR.face_v[meshR.face_i[i]]+1+verticesL , meshR.face_v[meshR.face_i[i]+1]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]+elementsL);
-
-
-
-    fprintf(fp, "))\n");
-  }
-  else
-  {
-    int nfa_i[nzone];        //Number of faces in the current zone
-    int total_faces=0;
-
-    for(int n=0 ; n<bc_names.size(); n++)
-    {
-      // Defining the index of the face zone
-      ind_faces[n+1]=n+4;                                 // the index starts in 3
-      //Counting the number of faces of the present face zone, needed in the declaration for the face
-      nfa_i[n]=0;
-      for(int i=0; i<nfacesL; i++)
-        if(meshL.face_name[i].compare(bc_names[n])==0)
-          nfa_i[n]++;
-      for(int i=0; i<nfacesR; i++)
-        if(meshR.face_name[i].compare(bc_names[n])==0)
-          nfa_i[n]++;
-
-
-      // Declaration of the face zone
-      if(n!=bc_names.size()-1) fprintf(fp,"(13 (%x %x %x 3 0)(\n", ind_faces[n+1] ,total_faces+1, total_faces+nfa_i[n]);
-      else fprintf(fp,"(13 (%x %x %x 2 0)(\n", ind_faces[n+1]+1 ,total_faces+1, total_faces+nfa_i[n]);
-      // Giving the face connectivity
-      for(int i=0; i<nfacesL; i++)
-        if(meshL.face_name[i].compare(bc_names[n])==0)
-          fprintf(fp,"4 %x %x %x %x %x %x \n",                                  meshL.face_v[meshL.face_i[i]]+1 ,             meshL.face_v[meshL.face_i[i]+1]+1 ,               meshL.face_v[meshL.face_i[i]+2]+1 ,               meshL.face_v[meshL.face_i[i]+3]+1 ,               meshL.face_elem[(2*i)],             meshL.face_elem[(2*i)+1]);
-
-      for(int i=0; i<nfacesR; i++)
-        if(meshR.face_name[i].compare(bc_names[n])==0)
-          if (meshR.face_elem[(2*i)+1]==0) fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.face_v[meshR.face_i[i]]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+1]+1 +verticesL ,    meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]);
-          else                          fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.face_v[meshR.face_i[i]]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+1]+1 +verticesL ,    meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]+elementsL);
-
-      fprintf(fp, "))\n");
-      total_faces+=nfa_i[n];
-      cout<<"Number of faces in boundary "<<bc_names[n] <<" "<<nfa_i[n]<<endl;
-
-    }
-
-    cout<<"Total number of faces in the numerical domain "<<total_faces<<endl;
-
-
-  }
-
-
-  fprintf(fp,"\n");
-
-  //
-  // cells
-  //
-  int cv_element_type = 4; // hexahedral = 4
-  int cv_type = 1; //1; // active = 1 - inactive = 32
-  char this_zone[128];
-  sprintf(this_zone,"fluid");
-  fprintf(fp,"(0 \"Cells:\")\n");
-  fprintf(fp,"(12 (0 %x %x 0))\n",1, elements);
-  fprintf(fp,"(12 (%x %x %x %x %x))\n", 2,1,elements,cv_type,cv_element_type);
-//  fprintf(fp,"(12 (%x %x %x %x %x))\n", 3,elementsR+1,elements,cv_type,cv_element_type);
-  fprintf(fp,"\n");
-
-  if(zone_noname)
-  {
-    fprintf(fp,"(0 \"Zones:\")\n");
-    fprintf(fp,"(45 (2 fluid fluid))\n");
-//    fprintf(fp,"(45 (3 fluid fluid 0))\n");
-    fprintf(fp,"(45 (%i wall boundaries))\n", ind_faces[0]);
-    fprintf(fp,"(45 (%i interior default-interior)\n", ind_faces[1]);
-  }
-  else
-  {
-    fprintf(fp,"(0 \"Zones:\")\n");
-    fprintf(fp,"(45 (2 fluid fluid)())\n");
-//    fprintf(fp,"(45 (3 fluid fluid 0))\n");
-    for(int n=0 ; n<bc_names.size()-1; n++)
-    {
-      fprintf(fp,"(45 (%i wall %s)())\n", ind_faces[n+1], bc_names[n].c_str());
-    }
-    fprintf(fp,"(45 (%i interior default-interior)())\n", ind_faces[bc_names.size()]+1);
-  }
-//  fprintf(fp,"(12 (%x %x %x %x))\n", 0,1,elements,cv_type);
-//  fprintf(fp,"(12 (%x %x %x %x %x))\n", 2,1,elements,cv_type,cv_element_type);
-//  fprintf(fp,"(45 (%d fluid %s)())\n",  4001,this_zone);
-  fprintf(fp,"\n");
-
-
-
-  fclose(fp);
-
-  printf(" > Fluent case file written for INTERFACE: %s\n", filename);
-}
-
-void MESHTOOLS::writeFluentMsh_Interface_obj(const char *filename, const UNSTRUCTMESH meshL, const UNSTRUCTMESH meshR ,  deque<string> bc_names)
-{
-  FILE * fp;
-
-  printf(" > starting to write fluent case file with an INTERFACE: %s\n", filename);
-
-  if ( (fp=fopen(filename,"w"))==NULL ) {
-    printf(" > could not open file %s\n", filename);
-    exit(-1);
-  }
-
-  fprintf(fp,"(0 \"Project to Fluent\")\n");
-  fprintf(fp,"\n");
-  fprintf(fp,"(1 \"In-house Mesh Generator\")\n");
-  fprintf(fp,"\n");
-  fprintf(fp,"(0 \"Dimensions:\")\n");
-  fprintf(fp,"(2 3)\n");
-  fprintf(fp,"\n");
-
-  //
-  // header and global dimensions
-  //
-
-  int verticesR = meshR.nodes.size();
-  int elementsR = meshR.elem_i.size()-1;
-  int nfacesR = meshR.faces.size();         //face_i.size();
-  int nzoneR = meshR.n_zone;
-
-
-  int verticesL = meshL.nodes.size();
-  int elementsL = meshL.elem_i.size()-1;
-  int nfacesL = meshL.faces.size();         //face_i.size();
-  int nzoneL = meshL.n_zone;
-
-  int vertices =verticesL + verticesR;
-  int elements = elementsL + elementsR;
-  int nfaces = nfacesL + nfacesR;
-  int nzone =nzoneL + nzoneL - 3;   // top, bottom and fluid are already in both meshes!
-
-  fprintf(fp,"(0 \"Grid:\")\n");
-//  fprintf(fp,"\n");
-//  fprintf(fp,"(13 (0 %x %x 0))\n",1, nfaces);
-
-  fprintf(fp,"\n");
-
-  fprintf(fp,"(0 \"Nodes:\")\n");
-  fprintf(fp,"(10 (0 %x %x 1 3))\n",1, vertices);
-  fprintf(fp, "(10 (1 %x %x 1 3)(\n",1, vertices);
-  for (int i=0; i<meshL.nodes.size(); i++)
-    fprintf(fp, "%20.11le%20.11le%20.11le\n", meshL.nodes[i].pt.x, meshL.nodes[i].pt.y, meshL.nodes[i].pt.z);
-  for (int i=0; i<meshR.nodes.size(); i++)
-      fprintf(fp, "%20.11le%20.11le%20.11le\n", meshR.nodes[i].pt.x, meshR.nodes[i].pt.y, meshR.nodes[i].pt.z);
-  fprintf(fp, "))\n");
-  fprintf(fp,"\n");
-
-
-  //
-  // start of faces
-  //
-  int fa_element_type = 4; // hexahedral = 4
-  int fa_type = 0; //1; // active = 1 - inactive = 32
-//  nfaces=106;
-  fprintf(fp,"(0 \"Faces:\")\n");
-  fprintf(fp,"(13 (0 %x %x 0))\n",1, nfaces);
-
-  int ind_faces[nzone+1];      //Index of the current zone
-
-  bool zone_noname=false;
-  for(int i=0; i<nfacesL; i++)
-    if(strcmp (meshL.faces[i].name, "noname") == 0)   //(meshL.face_name[i].compare("noname")==0) //if(strcmp (meshL.face_name[i], "noname") == 0)
-    {
-      zone_noname=true;
-      cout<<"WARNING: At least one of the faces in the Left side was not named! All the face zones will be named together as: boundaries"<<endl;
-      break;
-    }
-  for(int i=0; i<nfacesR; i++)
-    if(strcmp (meshR.faces[i].name, "noname") == 0)   //(meshR.face_name[i].compare("noname")==0) //if(strcmp (meshR.faces[i].name, "noname") == 0)
-    {
-      zone_noname=true;
-      cout<<"WARNING: At least one of the faces in the Right side was not named! All the face zones will be named together as: boundaries"<<endl;
-      break;
-    }
-  cout<<"Segmentation before"<<endl;
-  if(zone_noname)
-  {
-
-    int faces_wall=0;
-    for(int i=0; i<nfacesL; i++)
-      if(meshL.faces[i].elem_2==0) faces_wall++;   //(meshL.face_elem[(2*i)+1]==0)  faces_wall++;
-    for(int i=0; i<nfacesR; i++)
-      if(meshR.faces[i].elem_2==0) faces_wall++;   //(meshR.face_elem[(2*i)+1]==0)  faces_wall++;
+      if(meshR.faces[i].elem_2==0) faces_wall++;
 
     //WALL FACES
     ind_faces[0]=3;
@@ -2814,10 +3320,9 @@ void MESHTOOLS::writeFluentMsh_Interface_obj(const char *filename, const UNSTRUC
     fprintf(fp,"(13 (%x %x %x 3 0)(\n", ind_faces[0] ,1, faces_wall);
     for(int i=0; i<nfacesL; i++)
       if(meshL.faces[i].elem_2==0)           fprintf(fp,"4 %x %x %x %x %x %x \n",    meshL.faces[i].node[0]+1,              meshL.faces[i].node[1]+1,           meshL.faces[i].node[2]+1,           meshL.faces[i].node[3]+1,           meshL.faces[i].elem_1,              meshL.faces[i].elem_2);
-                    //if(meshL.face_elem[(2*i)+1]==0)  fprintf(fp,"4 %x %x %x %x %x %x \n",  meshL.face_v[meshL.face_i[i]]+1 ,           meshL.face_v[meshL.face_i[i]+1]+1 ,               meshL.face_v[meshL.face_i[i]+2]+1 ,             meshL.face_v[meshL.face_i[i]+3]+1 ,               meshL.face_elem[(2*i)],             meshL.face_elem[(2*i)+1]);
+
     for(int i=0; i<nfacesR; i++)
       if(meshR.faces[i].elem_2==0)           fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.faces[i].node[0]+1+verticesL,    meshR.faces[i].node[1]+1+verticesL, meshR.faces[i].node[2]+1+verticesL, meshR.faces[i].node[3]+1+verticesL, meshR.faces[i].elem_1+elementsL,    meshR.faces[i].elem_2);
-                    //if(meshR.face_elem[(2*i)+1]==0)  fprintf(fp,"4 %x %x %x %x %x %x \n",  meshR.face_v[meshR.face_i[i]]+1+verticesL , meshR.face_v[meshR.face_i[i]+1]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]+elementsL);
 
 
     fprintf(fp, "))\n");
@@ -2827,10 +3332,10 @@ void MESHTOOLS::writeFluentMsh_Interface_obj(const char *filename, const UNSTRUC
     fprintf(fp,"(13 (%x %x %x 2 0)(\n", ind_faces[1] ,faces_wall+1, nfaces);
     for(int i=0; i<nfacesL; i++)
       if(meshL.faces[i].elem_2>0)           fprintf(fp,"4 %x %x %x %x %x %x \n",    meshL.faces[i].node[0]+1,              meshL.faces[i].node[1]+1,           meshL.faces[i].node[2]+1,           meshL.faces[i].node[3]+1,           meshL.faces[i].elem_1,              meshL.faces[i].elem_2);
-                          //if(meshL.face_elem[(2*i)+1]>0)   fprintf(fp,"4 %x %x %x %x %x %x \n",  meshL.face_v[meshL.face_i[i]]+1 ,           meshL.face_v[meshL.face_i[i]+1]+1 ,               meshL.face_v[meshL.face_i[i]+2]+1 ,             meshL.face_v[meshL.face_i[i]+3]+1 ,               meshL.face_elem[(2*i)],             meshL.face_elem[(2*i)+1]);
+
     for(int i=0; i<nfacesR; i++)
       if(meshR.faces[i].elem_2>0)           fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.faces[i].node[0]+1+verticesL,    meshR.faces[i].node[1]+1+verticesL, meshR.faces[i].node[2]+1+verticesL, meshR.faces[i].node[3]+1+verticesL, meshR.faces[i].elem_1+elementsL,    meshR.faces[i].elem_2+elementsL);
-                          //if(meshR.face_elem[(2*i)+1]>0)   fprintf(fp,"4 %x %x %x %x %x %x \n",  meshR.face_v[meshR.face_i[i]]+1+verticesL , meshR.face_v[meshR.face_i[i]+1]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]+elementsL);
+
 
 
 
@@ -2846,30 +3351,34 @@ void MESHTOOLS::writeFluentMsh_Interface_obj(const char *filename, const UNSTRUC
     {
       // Defining the index of the face zone
       ind_faces[n+1]=n+4;                                 // the index starts in 3
+
       //Counting the number of faces of the present face zone, needed in the declaration for the face
       nfa_i[n]=0;
       for(int i=0; i<nfacesL; i++)
-        if(strcmp (meshL.faces[i].name, bc_names[n].c_str()) == 0)    //((meshL.face_name[i].compare(bc_names[n])==0)
+        if(strcmp (meshL.faces[i].name, bc_names[n].c_str()) == 0)
           nfa_i[n]++;
       for(int i=0; i<nfacesR; i++)
-        if(strcmp (meshR.faces[i].name, bc_names[n].c_str()) == 0)    //(meshR.face_name[i].compare(bc_names[n])==0)
+        if(strcmp (meshR.faces[i].name, bc_names[n].c_str()) == 0)
           nfa_i[n]++;
-;
+
+
       // Declaration of the face zone
       if(n!=bc_names.size()-1) fprintf(fp,"(13 (%x %x %x 3 0)(\n", ind_faces[n+1] ,total_faces+1, total_faces+nfa_i[n]);
       else fprintf(fp,"(13 (%x %x %x 2 0)(\n", ind_faces[n+1]+1 ,total_faces+1, total_faces+nfa_i[n]);
-      // Giving the face connectivity
-      for(int i=0; i<nfacesL; i++)
-        if(strcmp (meshL.faces[i].name, bc_names[n].c_str()) == 0)    //(meshL.face_name[i].compare(bc_names[n])==0)
-          fprintf(fp,"4 %x %x %x %x %x %x \n",                                          meshL.faces[i].node[0]+1,              meshL.faces[i].node[1]+1,           meshL.faces[i].node[2]+1,           meshL.faces[i].node[3]+1,           meshL.faces[i].elem_1,              meshL.faces[i].elem_2);
-      //meshL.face_v[meshL.face_i[i]]+1 ,             meshL.face_v[meshL.face_i[i]+1]+1 ,               meshL.face_v[meshL.face_i[i]+2]+1 ,               meshL.face_v[meshL.face_i[i]+3]+1 ,               meshL.face_elem[(2*i)],             meshL.face_elem[(2*i)+1]);
 
+
+      // Giving the face connectivity
+
+      //Left mesh
+      for(int i=0; i<nfacesL; i++)
+        if(strcmp (meshL.faces[i].name, bc_names[n].c_str()) == 0)
+          fprintf(fp,"4 %x %x %x %x %x %x \n",                                          meshL.faces[i].node[0]+1,              meshL.faces[i].node[1]+1,           meshL.faces[i].node[2]+1,           meshL.faces[i].node[3]+1,           meshL.faces[i].elem_1,              meshL.faces[i].elem_2);
+
+      //Right mesh
       for(int i=0; i<nfacesR; i++)
-        if(strcmp (meshR.faces[i].name, bc_names[n].c_str()) == 0)    //(meshR.face_name[i].compare(bc_names[n])==0)
+        if(strcmp (meshR.faces[i].name, bc_names[n].c_str()) == 0)
           if(meshR.faces[i].elem_2==0)          fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.faces[i].node[0]+1+verticesL,    meshR.faces[i].node[1]+1+verticesL, meshR.faces[i].node[2]+1+verticesL, meshR.faces[i].node[3]+1+verticesL, meshR.faces[i].elem_1+elementsL,    meshR.faces[i].elem_2);
-      //fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.face_v[meshR.face_i[i]]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+1]+1 +verticesL ,    meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]);
           else                                  fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.faces[i].node[0]+1+verticesL,    meshR.faces[i].node[1]+1+verticesL, meshR.faces[i].node[2]+1+verticesL, meshR.faces[i].node[3]+1+verticesL, meshR.faces[i].elem_1+elementsL,    meshR.faces[i].elem_2+elementsL);
-      //fprintf(fp,"4 %x %x %x %x %x %x \n",    meshR.face_v[meshR.face_i[i]]+1+verticesL ,   meshR.face_v[meshR.face_i[i]+1]+1 +verticesL ,    meshR.face_v[meshR.face_i[i]+2]+1+verticesL ,     meshR.face_v[meshR.face_i[i]+3]+1+verticesL ,     meshR.face_elem[(2*i)]+elementsL,   meshR.face_elem[(2*i)+1]+elementsL);
 
       fprintf(fp, "))\n");
       total_faces+=nfa_i[n];
@@ -2877,11 +3386,10 @@ void MESHTOOLS::writeFluentMsh_Interface_obj(const char *filename, const UNSTRUC
 
     }
 
-    cout<<"Total number of faces in the numerical domain "<<total_faces<<endl;
 
 
   }
-
+  cout<<"Segmentation after"<<endl;
   fprintf(fp,"\n");
   cout<<"Segmentation after"<<endl;
   //
@@ -2894,14 +3402,12 @@ void MESHTOOLS::writeFluentMsh_Interface_obj(const char *filename, const UNSTRUC
   fprintf(fp,"(0 \"Cells:\")\n");
   fprintf(fp,"(12 (0 %x %x 0))\n",1, elements);
   fprintf(fp,"(12 (%x %x %x %x %x))\n", 2,1,elements,cv_type,cv_element_type);
-//  fprintf(fp,"(12 (%x %x %x %x %x))\n", 3,elementsR+1,elements,cv_type,cv_element_type);
   fprintf(fp,"\n");
 
   if(zone_noname)
   {
     fprintf(fp,"(0 \"Zones:\")\n");
     fprintf(fp,"(45 (2 fluid fluid))\n");
-//    fprintf(fp,"(45 (3 fluid fluid 0))\n");
     fprintf(fp,"(45 (%i wall boundaries))\n", ind_faces[0]);
     fprintf(fp,"(45 (%i interior default-interior)\n", ind_faces[1]);
   }
@@ -2909,16 +3415,12 @@ void MESHTOOLS::writeFluentMsh_Interface_obj(const char *filename, const UNSTRUC
   {
     fprintf(fp,"(0 \"Zones:\")\n");
     fprintf(fp,"(45 (2 fluid fluid)())\n");
-//    fprintf(fp,"(45 (3 fluid fluid 0))\n");
     for(int n=0 ; n<bc_names.size()-1; n++)
     {
       fprintf(fp,"(45 (%i wall %s)())\n", ind_faces[n+1], bc_names[n].c_str());
     }
     fprintf(fp,"(45 (%i interior default-interior)())\n", ind_faces[bc_names.size()]+1);
   }
-//  fprintf(fp,"(12 (%x %x %x %x))\n", 0,1,elements,cv_type);
-//  fprintf(fp,"(12 (%x %x %x %x %x))\n", 2,1,elements,cv_type,cv_element_type);
-//  fprintf(fp,"(45 (%d fluid %s)())\n",  4001,this_zone);
   fprintf(fp,"\n");
 
 

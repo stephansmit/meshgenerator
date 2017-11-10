@@ -299,7 +299,7 @@ POINT BEZIER::calcPoint(double t, double offset1, double offset2) const
   return pt;
 }
 
-void BEZIER::drawLine()
+void BEZIER::drawLine() // the display of the bezier line is wrong, just connects the points like a line
 {
 	glLineWidth(2.0);
   glBegin(GL_LINE_STRIP);
@@ -369,6 +369,31 @@ void SPLINE::calcDerivative()
     deriv[k] = deriv[k]*deriv[k+1] + u[k];
 }
 
+double SPLINE::findS(POINT p)
+{
+  //====================================Newton Raphson
+  double x0, xn;
+  double dx = 0.000001;
+  double fx, dfx;
+  x0=0.0;
+  int n=0;
+  double tol=100;
+  while(n<100 && tol>0.000000001)
+  {
+    POINT pts_x0   =  calcPoint(x0);
+    POINT pts_x0dx =  calcPoint(x0+dx);
+    fx= mag(pts_x0-p);
+    dfx= (mag(pts_x0dx-p)-mag(pts_x0-p))/dx;
+    xn= x0 - (fx/dfx);
+    n++;
+    tol= fabs(xn - x0);
+    x0=xn;
+  }
+  //====================================
+  if(n<100 && tol<0.000000001)  return xn;
+  else                            {printf("Point is not part of the spline! The tolerance was not achieved (function: SPLINE::findSError) %.10le\n", tol);     return xn;}
+}
+
 /*! \brief spline offset
  *
  */
@@ -388,15 +413,33 @@ SPLINE SPLINE::offsetRadial(const double thickness)
 
 POINT SPLINE::calcNorm2D(double t) const
 {
-  double ds = 0.00008; //0.005 ; //0.0001;
+  double ds = 0.015; //0.000008; //0.005 ; //0.0001;
   POINT pt1 = calcPoint(t-ds);
+//  POINT pt2 = calcPoint(t);
   POINT pt2 = calcPoint(t+ds);
   POINT tang = (pt2-pt1)/(2.0*ds);
+//  POINT tang = (pt2-pt1)/(ds);
   double tmp = tang.x;
   tang.x = tang.y;
   tang.y = -tmp;
   return tang/mag(tang);
 }
+
+POINT SPLINE::calcNorm2D_offset(double t, double offset1, double offset2) const
+{
+  t = t*(offset2-offset1) + offset1;
+  double ds = 0.001; //0.005 ; //0.0001;
+  POINT pt1 = calcPoint(t-ds);
+//  POINT pt2 = calcPoint(t);
+  POINT pt2 = calcPoint(t+ds);
+  POINT tang = (pt2-pt1)/(2.0*ds);
+//  POINT tang = (pt2-pt1)/(ds);
+  double tmp = tang.x;
+  tang.x = tang.y;
+  tang.y = -tmp;
+  return tang/mag(tang);
+}
+
 
 void SPLINE::drawLine()
 {
