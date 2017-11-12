@@ -1,0 +1,98 @@
+fileName = BladeGen_profile.curve
+
+
+###DESIGNVARIABLES####
+stagger_deg=1
+alphalead=50
+alphatrail=10
+thickness=0.0002
+thicknesp=0.00
+heightb=0.2
+heightc=1
+posthickness=0.9
+btrail=0.1
+blead=0.1
+
+
+smooth=10000
+####FIXED####
+heighta=0.01
+angle_deg = 8.37209302
+Rtrailing=0.2
+Rleading=0.28
+Rin = 0.18
+Rout = 0.3
+Radtrailing=0.0007
+Radleading=0.00125
+TRIAGSIZE = 0.000003
+
+###DISCRETIZATION
+ntrail=15
+nlead=15
+nsuction=40
+npressure=40
+nboundtop0=10
+nboundtop1=40
+nboundtop2=10
+nboundbot0=10
+nboundbot1=40
+nboundbot2=10r
+nboundinner=10
+nboundouter=20
+nbladeBL=30
+thickBL=0.006
+first_l=2e-4
+
+###############################
+#            ROTOR            #
+###############################
+ROTOR_MESH = 1
+ROTOR_BL   = 0
+ROTOR_UNST = 0
+ROTOR_3D   = 1
+
+ROT_IN = 126
+ROT_OUT = 68 
+ROT_PER = 200 #240
+
+ROT_BLPTS = 27r
+ROT_BLTH = 0.85 #1.1
+ROT_BLFL = 1e-3
+ROT_SSPTS = 220 #190
+ROT_PSPTS = 200 #170
+
+
+###############################
+#            STATOR           #
+###############################
+
+STA_LEFT1 = 60
+STA_LEFT2 = 400
+STA_RIGHT1 = 160
+STA_RIGHT2 = 60
+STA_BLPTS = 22
+STA_BLTH = 0.003
+STA_BLFL = 5.0e-6
+
+STA_PER1 = 14
+STA_PER2 = 25
+STA_THROAT = 4
+STA_IN = 50
+STA_OUT = 200
+
+
+# distribution
+MESH1_PAR1 = 0.01
+MESH1_PAR2 = 0.001
+
+# out right
+MESH2_PAR1 = 1.5 #35
+MESH2_PAR2 = 0.4 #45
+
+# out left
+MESH3_PAR1 = 2.0 #1.2
+MESH3_PAR2 = 0.65 #7
+
+MESH4_PAR1 = 0.001
+MESH4_PAR2 = 0.01
+
