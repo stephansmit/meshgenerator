@@ -228,9 +228,9 @@ public:
     int nboundbot2=getIntParam("nboundbot2");
     int nboundinner=getIntParam("nboundinner");
     int nboundouter=getIntParam("nboundouter");
-    int nbladeBL = getIntParam("nbladeBL");
-    double thickBL =getDoubleParam("thickBL");//thickness of the  boundary layer
-    double first_l =getDoubleParam("first_l");//2.5e-4//thickness of the  boundary layer
+
+
+
     double angle_rad = (angle_deg/180.)*M_PI;
     double alphalead_rad=(alphalead/180.)*M_PI;
     double alphatrail_rad=(alphatrail/180.)*M_PI;
@@ -504,7 +504,7 @@ Singleton * Singleton::instance = NULL;
 int main(int argc, char *argv[])
 {
 //	makeMesh();
-  initOpenGl(argc, argv);
+  //initOpenGl(argc, argv);
 //
   Singleton *radialComp = Singleton::instanciate(argv[1]);
   radialComp->makeMesh();

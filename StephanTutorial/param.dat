@@ -7,8 +7,8 @@ alphalead=-45.
 alphatrail=-52
 thickness=0.95
 thicknesp=0.00
-heightb=0.2
-heightc=1
+heightb=0.002
+heightc=0.001
 posthickness=0.55	
 btrail=55
 blead=15
@@ -17,7 +17,7 @@ positionblade=.9
 
 smooth=100000
 ####FIXED####
-heighta=0.01
+heighta=60
 angle_deg = 8.37209302
 Rtrailing=90.5
 Rleading=112.0

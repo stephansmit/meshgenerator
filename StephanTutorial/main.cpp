@@ -179,11 +179,11 @@ public:
 	  return points;
 
   }
-  double calcheight(double a, double b, double c, POINT point) {
+  POINT calcheight(double a, double b, double c, POINT point) {
 	  double height;
 	  double r = sqrt(pow(point.x,2) + pow(point.y,2));
 	  height = a + b*r + c*pow(r,2);
-	  return height;
+	  return POINT(0, 0, height);
   }
 
   UNSTRUCTMESH buildMesh3D_gus(UNSTRUCTMESH &unstMesh, const double dz, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme)
@@ -382,7 +382,7 @@ public:
 
 
 
-    //------------------------calculate the thickness
+    //------------------------calculate the thicknessdouble
     POINT s = bezierline.calcNorm2D(posthickness);
     POINT rmiddle = rmiddle_tmp; //+ thicknesp* s;
     POINT middlesuction = rmiddle + thickness* s;//(s-rmiddle);
@@ -455,9 +455,13 @@ public:
     //---------------------construct the boundary
 
     //make the corners
-    POINT bstarttop(cos( angle_rad/2)*Rin , -sin(angle_rad/2)*Rin, 0.0);
+
+
+
     POINT bendtop(cos( angle_rad/2 )*Rout , -sin(angle_rad/2)*Rout, 0.0);
     POINT bstartctop = camberlinetop.calcPoint(0);
+    POINT bstarttop(cos( angle_rad/2)*Rin , bstartctop.y, 0.0);
+
     deque<POINT> btoppoints;
     btoppoints.push_back(bstarttop);btoppoints.push_back(bstartctop);
     SPLINE btopline0(btoppoints);
@@ -504,7 +508,7 @@ public:
 
 //    //---------------------------make height distribution
 //
-//
+
 //
 //
 
@@ -548,10 +552,10 @@ public:
     //-----------------------------------make unstructured mesh
     TRIANGULATE mesh;
     mesh.extBoundary = boundary;
-//    HOLE hole;
-//    hole.holesPoints = ext_BL_pts;
-//    hole.insidePoints = rlead+point_tmp;
-//    mesh.holes.push_back(hole);
+    HOLE hole;
+    hole.holesPoints = ext_BL_pts;
+    hole.insidePoints = rlead+point_tmp;
+    mesh.holes.push_back(hole);
     double triangSize = getDoubleParam("TRIAGSIZE");
     char param[200];
     sprintf(param, "pq30a%fFDY", triangSize);
@@ -566,8 +570,10 @@ public:
 //
 //
     //-----------------------------------create combined mesh
-    UNSTRUCTMESH mesh2D =  unstructbladeBL; //+ unstructbladeBL;
-    //UNSTRUCTMESH mesh3d = mesh2Dto3D(mesh2D,heighta,heightb,heightc,Rout, 3 );
+    UNSTRUCTMESH mesh2D =  mesh+ unstructbladeBL;
+    mesh2D.removeDoublePoints();
+
+    mesh2D.removeDoubleFaces();
     //mesh2D.findFaces2D_obj();
     for(int i=mesh2D.nfa_i; i<mesh2D.faces.size(); i++)
     {
@@ -588,75 +594,44 @@ public:
 
 
 		  if((fabs(tmp_rad1-Rin)<0.0000001) && (fabs(tmp_rad2-Rin)<0.0000001))
-			strcpy (mesh2D.faces[i].name,"inlet");
+			strcpy (mesh2D.faces[i].name,"inmix");
 		  else if((fabs(tmp_rad1-Rout)<0.0000001) && (fabs(tmp_rad2-Rout)<0.0000001))
 			strcpy (mesh2D.faces[i].name,"outlet");
 		  else if (find(periodicboundtop.begin(), periodicboundtop.end(), node1) != periodicboundtop.end() &&
 				  find(periodicboundtop.begin(), periodicboundtop.end(), node0) != periodicboundtop.end())
-			strcpy (mesh2D.faces[i].name,"per_bot");
+			strcpy (mesh2D.faces[i].name,"per_5");
 		  else if (find(periodicboundbot.begin(), periodicboundbot.end(), node1) != periodicboundbot.end() &&
 				  find(periodicboundbot.begin(), periodicboundbot.end(), node0) != periodicboundbot.end())
-			strcpy (mesh2D.faces[i].name,"per_top");
+			strcpy (mesh2D.faces[i].name,"per_6");
 		  else if (find(meshpts.begin(), meshpts.end(), node1) != meshpts.end() &&
 				  find(meshpts.begin(), meshpts.end(), node0) != meshpts.end())
 			strcpy (mesh2D.faces[i].name,"blade");
-		  else if (find(ext_BL_pts.begin(), ext_BL_pts.end(), node1) != ext_BL_pts.end() &&
-				  find(ext_BL_pts.begin(), ext_BL_pts.end(), node0) != ext_BL_pts.end())
-			strcpy (mesh2D.faces[i].name,"outerblade");
 		}
     }
+    UNSTRUCTMESH mesh2D_h = mesh2D;
+    for (int i=0; i<mesh2D_h.nodes.size(); i++) {
+    	mesh2D_h.nodes[i].pt += calcheight(heighta, heightb, heightc, mesh2D_h.nodes[i].pt );
+    }
 
-//
-//
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1179].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1179].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1180].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1180].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1181].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1181].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1182].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1182].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1183].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1183].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1184].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1184].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1185].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1185].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1186].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1186].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1187].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1187].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1254].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1254].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1255].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1255].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1256].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1256].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1257].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1257].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1258].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1258].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1259].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1259].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1260].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1260].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1261].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1261].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1262].node[0]].pt);
-//    addToDisplay(mesh2D.nodes[mesh2D.faces[1262].node[0]].pt);
+    deque<UNSTRUCTMESH> meshes;
+    meshes.push_back(mesh2D); meshes.push_back(mesh2D_h);
+    UNSTRUCTMESH mesh3d = buildMesh3D(meshes,3, "LINE", "top_rotor", "bottom_rotor");
+
 	deque<string> BC_names;
-	BC_names.push_back("inlet");
+	BC_names.push_back("inmix");
 	BC_names.push_back("outlet");
-	BC_names.push_back("per_top");
-	BC_names.push_back("per_bot");
+	BC_names.push_back("per_5");
+	BC_names.push_back("per_6");
 	BC_names.push_back("blade");
 	BC_names.push_back("fluid");
-	mesh2D.n_zone =BC_names.size();
-	mesh2D.writeFluentMsh("botMesh.msh",2, BC_names);
+	//mesh3d.n_zone =BC_names.size();
+	mesh3d.writeSU2("turbine-43nitish-triogen-3d.su2",3, BC_names);
 		//
 
 
-    addToDisplay(mesh2D);
+    addToDisplay(mesh3d);
+    //addToDisplay(mesh2D_h);
+
 //    addToDisplay(unstructbladeBL);
 //    addToDisplay(meshpts);
 //    addToDisplay(camberlinebot);
