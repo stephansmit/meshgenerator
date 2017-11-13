@@ -179,91 +179,13 @@ public:
 	  return points;
 
   }
-  POINT calcheight(double a, double b, double c, POINT point) {
+  POINT calcheight(double a, double b, double c, double Rout, POINT point) {
 	  double height;
 	  double r = sqrt(pow(point.x,2) + pow(point.y,2));
-	  height = a + b*r + c*pow(r,2);
+	  height = a + b*(Rout-r) + c*pow((Rout-r),2);
 	  return POINT(0, 0, height);
   }
 
-  UNSTRUCTMESH buildMesh3D_gus(UNSTRUCTMESH &unstMesh, const double dz, const int nLayers, const double firstLength, const double lastLength, const int startLayer, const string &interpScheme)
-  {
-    UNSTRUCTMESH mesh3D;
-    deque<int> elem_v_2D, elem_i_2D;
-
-    deque< deque<POINT> > points2D;
-    deque<UNSTRUCTMESH> layers2D;
-
-    // Copying the 2D mesh and the nodes that construct them
-    for (int i=0; i<2;i++)
-    {
-      UNSTRUCTMESH tmp_mesh;
-      deque<POINT> tmpPts;
-
-      tmp_mesh= unstMesh;
-      //    tmp_mesh(unstMesh);
-      for (int j=0;j<tmp_mesh.nodes.size();j++)
-      {
-        tmp_mesh.nodes[j].pt=unstMesh.nodes[j].pt+POINT(0.0,0.0,i*dz);        //making a copy of the 2D mesh at a certain dz up!!
-        tmpPts.push_back(tmp_mesh.nodes[j].pt);
-      }
-      points2D.push_back(tmpPts);
-      layers2D.push_back(tmp_mesh);
-    }
-
-    elem_v_2D = layers2D[0].elem_v;
-    elem_i_2D = layers2D[0].elem_i;
-
-
-    int nvert = (int)points2D[0].size();
-    int nelem = (int)elem_i_2D.size()-1;
-
-    // NODES OF THE 3D MESH
-
-    // Cpying the nodes in the other direction, in this case z!
-    deque< deque<POINT> > nodes3D;    //number of nodes in the 2D mesh x number of layers in z
-    for (int i=0; i<nvert; i++)
-    {
-      deque<POINT> nodes_i;
-
-      deque<POINT> splinepts;
-      for (int s=0; s<points2D.size(); s++)
-        splinepts.push_back(points2D[s][i]);
-
-      LINE span(splinepts);
-      // define distribution in the spanwise direction
-      double distr[nLayers];
-      firstLastLengthDistr(dz/nLayers, dz/nLayers, nLayers, distr);      //First lenght and last lenght can be used for boundary layer in the spanwise direction
-      for (int l=0; l<nLayers; l++)
-        nodes_i.push_back(span.calcPoint(distr[l]));
-      nodes3D.push_back(nodes_i);
-    }
-    for (int l=0; l<nLayers; l++)
-      for (int i=0; i<nvert; i++)
-      {
-        NODE tmp;
-        tmp.pt = nodes3D[i][l];
-        mesh3D.nodes.push_back(tmp);
-      }
-    // ELEMENTS OF THE 3D MESH
-    int k=0;
-    mesh3D.elem_i.push_back(k);
-    for (int l=0; l<nLayers-1; l++)
-      for (int c=0; c<nelem; c++)
-      {
-        deque<int> tmpElem;
-        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-          mesh3D.elem_v.push_back(elem_v_2D[i]+(l+1)*nvert);
-
-        for (int i=elem_i_2D[c]; i<elem_i_2D[c+1]; i++)
-          mesh3D.elem_v.push_back(elem_v_2D[i]+(l)*nvert);
-
-        k += 2*(elem_i_2D[c+1]-elem_i_2D[c]);
-        mesh3D.elem_i.push_back(k);
-      }
-    mesh3D.nel_i = mesh3D.elem_i.size() - 1 - nelem;
-    return(mesh3D);
-  }
 
   void makeMesh()
   {
@@ -569,6 +491,8 @@ public:
 
 //
 //
+    deque<POINT> innerpoints_b = discretizeSpline(innerline, nboundinner, true, true);
+    deque<POINT> outerpoints_b = discretizeSpline(outerline, nboundouter, true, false);
     //-----------------------------------create combined mesh
     UNSTRUCTMESH mesh2D =  mesh+ unstructbladeBL;
     mesh2D.removeDoublePoints();
@@ -593,16 +517,18 @@ public:
 		  double tmp_y2= node1.y;
 
 
-		  if((fabs(tmp_rad1-Rin)<0.0000001) && (fabs(tmp_rad2-Rin)<0.0000001))
+		  if(find(outerpoints_b.begin(), outerpoints_b.end(), node1) != outerpoints_b.end() &&
+				  find(outerpoints_b.begin(), outerpoints_b.end(), node0) != outerpoints_b.end())
 			strcpy (mesh2D.faces[i].name,"inmix");
-		  else if((fabs(tmp_rad1-Rout)<0.0000001) && (fabs(tmp_rad2-Rout)<0.0000001))
+		  else if(find(innerpoints_b.begin(), innerpoints_b.end(), node1) != innerpoints_b.end() &&
+				  find(innerpoints_b.begin(), innerpoints_b.end(), node0) != innerpoints_b.end())
 			strcpy (mesh2D.faces[i].name,"outlet");
 		  else if (find(periodicboundtop.begin(), periodicboundtop.end(), node1) != periodicboundtop.end() &&
 				  find(periodicboundtop.begin(), periodicboundtop.end(), node0) != periodicboundtop.end())
-			strcpy (mesh2D.faces[i].name,"per_5");
+			strcpy (mesh2D.faces[i].name,"per5");
 		  else if (find(periodicboundbot.begin(), periodicboundbot.end(), node1) != periodicboundbot.end() &&
 				  find(periodicboundbot.begin(), periodicboundbot.end(), node0) != periodicboundbot.end())
-			strcpy (mesh2D.faces[i].name,"per_6");
+			strcpy (mesh2D.faces[i].name,"per6");
 		  else if (find(meshpts.begin(), meshpts.end(), node1) != meshpts.end() &&
 				  find(meshpts.begin(), meshpts.end(), node0) != meshpts.end())
 			strcpy (mesh2D.faces[i].name,"blade");
@@ -610,22 +536,27 @@ public:
     }
     UNSTRUCTMESH mesh2D_h = mesh2D;
     for (int i=0; i<mesh2D_h.nodes.size(); i++) {
-    	mesh2D_h.nodes[i].pt += calcheight(heighta, heightb, heightc, mesh2D_h.nodes[i].pt );
+    	mesh2D_h.nodes[i].pt += calcheight(heighta, heightb, heightc, Rout, mesh2D_h.nodes[i].pt );
     }
 
     deque<UNSTRUCTMESH> meshes;
     meshes.push_back(mesh2D); meshes.push_back(mesh2D_h);
-    UNSTRUCTMESH mesh3d = buildMesh3D(meshes,3, "LINE", "top_rotor", "bottom_rotor");
+    UNSTRUCTMESH mesh3d = buildMesh3D(meshes,4, "LINE", "top_rotor", "bottom_rotor");
 
 	deque<string> BC_names;
 	BC_names.push_back("inmix");
 	BC_names.push_back("outlet");
-	BC_names.push_back("per_5");
-	BC_names.push_back("per_6");
+	BC_names.push_back("per5");
+	BC_names.push_back("per6");
 	BC_names.push_back("blade");
+	BC_names.push_back("top");
+	BC_names.push_back("bottom");
 	BC_names.push_back("fluid");
 	//mesh3d.n_zone =BC_names.size();
-	mesh3d.writeSU2("turbine-43nitish-triogen-3d.su2",3, BC_names);
+	mesh3d.writeSU2("rotor-43nitish-triogen-3d.su2",3, BC_names);
+	mesh3d.writeFluentMsh("rotor-43nitish-triogen-3d.msh",3, BC_names);
+
+
 		//
 
 
